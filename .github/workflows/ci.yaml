@@ -1,0 +1,130 @@
+name: Homelab CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  network-terraform:
+    name: Network Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:ci
+          args: --exit-node=100.83.21.9 --accept-risk=all
+
+      - name: Verify Tailscale Connection
+        run: |
+          echo "Waiting for Tailscale to establish connection..."
+          # Wait for a short period to allow Tailscale to connect
+          sleep 10
+          # Attempt to ping the target IP
+          if ping -c 4 10.70.30.1 > /dev/null 2>&1; then
+            echo "Ping to 10.70.30.1 successful."
+          else
+            echo "Ping to 10.70.30.1 failed. Exiting."
+            exit 1
+          fi
+
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.10.3'
+          cli_config_credentials_token: ${{ secrets.TERRAFORM_HOMELAB_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        working-directory: ./deploy/terraform/network
+        run: terraform init
+        env:
+          TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
+          TF_VAR_router_core_host_url: https://10.70.30.1
+
+      - name: Terraform Format
+        working-directory: ./deploy/terraform/network
+        run: terraform fmt -check
+
+      - name: Write Network Terraform vars file from secret
+        working-directory: ./deploy/terraform/network
+        run: echo "${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}"  | base64 --decode > terraform.tfvars.json
+        shell: bash
+
+      - name: Terraform Validate
+        working-directory: ./deploy/terraform/network
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ./deploy/terraform/network
+        id: plan
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
+          TF_VAR_router_core_host_url: https://10.70.30.1
+
+      - name: Terraform Apply
+        working-directory: ./deploy/terraform/network
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
+          TF_VAR_router_core_host_url: https://10.70.30.1
+
+      - name: Terraform Output
+        working-directory: ./deploy/terraform/network
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          terraform output -json current_vlan30_leases > dhcp_leases_by_node.json
+          echo "Terraform output generated successfully."
+        env:
+          TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
+          TF_VAR_router_core_host_url: https://10.70.30.1
+
+      - name: Install SSH Private Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOMELAB_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Add current_lease IPs to known_hosts
+        run: |
+          JSON_FILE="./deploy/terraform/network/dhcp_leases_by_node.json"
+
+          if ! command -v jq &> /dev/null
+          then
+              echo "jq could not be found, installing..."
+              sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+          CURRENT_LEASE_IPS=$(jq -r '.[].current_lease' "$JSON_FILE" | sort -u)
+
+          echo "Adding the following IPs to known_hosts:"
+          echo "$CURRENT_LEASE_IPS"
+
+          mkdir -p ~/.ssh
+
+          touch ~/.ssh/known_hosts
+
+          for IP in $CURRENT_LEASE_IPS; do
+            echo "Scanning SSH keys for ${IP}..."
+            ssh-keyscan -H "$IP" >> ~/.ssh/known_hosts 2>/dev/null || echo "Failed to scan ${IP}"
+          done
+
+          sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+
+      - name: Run Python Script to Refresh DHCP Leases
+        run: |
+          python3 ./scripts/util/refresh-node-dhcp-lease.py ./deploy/terraform/network/dhcp_leases_by_node.json
