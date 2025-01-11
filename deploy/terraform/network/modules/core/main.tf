@@ -30,8 +30,10 @@ locals {
         current_lease = lookup(local.current_vlan30_leases_by_address, key, null)
       }
     )
+    if lookup(local.current_vlan30_leases_by_address, key, null) != null
   }
 }
+
 
 output "vlan30_dhcp_leases" {
   description = "VLAN30 Mac Addresses mapped to their current and expected lease values"
