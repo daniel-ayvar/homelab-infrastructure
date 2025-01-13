@@ -21,20 +21,27 @@ The hardware for each is as follows:
 > * network: 1 2.5G NIC, Wifi
 
 ## Initializing the nodes
-Each node must be installed with debian 12.8 iso. When initialized, ensure the following are configured:
+Ensure the nodes are configured with the following:
 
 __For all__
-* ssh server is installed
-*
+* ensure that the correct ip address defined in the terraform.
+
+__For minis00__
+* proxmox VE 8.3 iso
 
 __For minis01 - minis03__
+* debian 12.8 iso
 * network is initialized with eth2
+* gateway & dns is set to vlan30 gateway
+* host url set to <NODE_NAME>.pve.local
 
 Once all nic are connected to the homelab router, then you can continue.
 
 ## Setting up a SSH key
 To remove the need for password authentication for ssh, manually create a ssh key and add the public
 key to the target machines.
+
+
 
 ### **Step 1: Generate an SSH Key Pair**
 On your local machine, generate a new SSH key:
@@ -49,6 +56,7 @@ By default, root ssh login is disabled. Password authentication will will be ena
 ```bash
 ssh your_user@target-machine-ip
 ```
+If you are using the proxmox iso, just use the terminal in the ui (local_ip:8006) with the root user.
 
 2. **Become a superuser:**
 Become a superuser, using the password used in the node initialization.
