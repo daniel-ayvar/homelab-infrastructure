@@ -100,7 +100,7 @@ add comment=scriptconf interface=wan
 # ======================================
 # Main LAN
 /ip dhcp-server network
-add address=10.70.0.0/24 comment=scriptconf dns-server=1.1.1.1,1.0.0.1 gateway=10.70.0.1 netmask=24
+add address=10.70.0.0/24 comment=scriptconf dns-server=10.70.0.1 gateway=10.70.0.1 netmask=24
 
 # VLAN 10
 /ip pool
@@ -110,7 +110,7 @@ add name=dhcp_vlan10 ranges=10.70.10.2-10.70.10.254 comment=scriptconf
 add address-pool=dhcp_vlan10 interface=vlan10 name=dhcp_vl10 comment=scriptconf
 
 /ip dhcp-server network
-add address=10.70.10.0/24 gateway=10.70.10.1 dns-server=1.1.1.1,1.0.0.11 comment=scriptconf
+add address=10.70.10.0/24 gateway=10.70.10.1 dns-server=10.70.10.1 comment=scriptconf
 
 # VLAN 30
 /ip pool
@@ -120,7 +120,7 @@ add name=dhcp_vlan30 ranges=10.70.30.2-10.70.30.254 comment=scriptconf
 add address-pool=dhcp_vlan30 interface=vlan30 name=dhcp_vl30 lease-time=1m comment=scriptconf
 
 /ip dhcp-server network
-add address=10.70.30.0/24 gateway=10.70.30.1 dns-server=1.1.1.1,1.0.0.11 comment=scriptconf
+add address=10.70.30.0/24 gateway=10.70.30.1 dns-server=10.70.30.1,9.9.9.9 comment=scriptconf
 
 # VLAN 40
 /ip pool
@@ -130,13 +130,13 @@ add name=dhcp_vlan40 ranges=10.70.40.2 comment=scriptconf
 add address-pool=dhcp_vlan40 interface=vlan40 name=dhcp_vl40 comment=scriptconf
 
 /ip dhcp-server network
-add address=10.70.40.0/30 gateway=10.70.40.1 dns-server=1.1.1.1,1.0.0.11 comment=scriptconf
+add address=10.70.40.0/30 gateway=10.70.40.1 dns-server=10.70.40.1,9.9.9.9 comment=scriptconf
 
 # ====================
 # DNS CONFIGURATION
 # ====================
 /ip dns
-set allow-remote-requests=yes servers=1.1.1.1,1.0.0.1 cache-max-ttl=1h
+set allow-remote-requests=yes servers=1.1.1.3,1.0.0.3 cache-max-ttl=1h
 
 # ================================
 # FIREWALL AND NAT CONFIGURATION
@@ -144,34 +144,33 @@ set allow-remote-requests=yes servers=1.1.1.1,1.0.0.1 cache-max-ttl=1h
 
 /ip firewall filter
 
-# ====================
-# INPUT CHAIN (Router Access Control)
-# ====================
-
 # Allow established, related, untracked traffic to the router
 add action=accept chain=input comment="scriptconf: Accept established, related, untracked" connection-state=established,related,untracked
 
 # Allow ICMP (Ping) traffic to the router
 add action=accept chain=input comment="scriptconf: Allow ICMP" protocol=icmp
 
+# Fasttrack established and related connections for performance
+add action=fasttrack-connection chain=forward comment="scriptconf: Fasttrack established, related" connection-state=established,related hw-offload=yes
+
+# Allow DNS traffic to external DNS servers
+add action=accept chain=forward protocol=udp dst-port=53 comment="scriptconf: Allow DNS UDP to WAN"
+add action=accept chain=forward protocol=tcp dst-port=53 comment="scriptconf: Allow DNS TCP to WAN"
+
+# Accept established, related, untracked traffic between devices
+add action=accept chain=forward comment="scriptconf: Accept established, related, untracked" connection-state=established,related,untracked
+
+# Drop traffic from WAN not DSTNATed
+add action=drop chain=forward comment="scriptconf: Drop traffic from WAN not DSTNATed" connection-nat-state=!dstnat connection-state=new in-interface-list=WAN
+
+# Allow devices in 10.70.0.0/24 to communicate with all devices
+add action=accept chain=forward comment="scriptconf: Allow 10.70.0.0/24 to communicate with all" src-address=10.70.0.0/24
+
 # Allow access to the router for devices in 10.70.0.0/24
 add action=accept chain=input comment="scriptconf: Allow access from 10.70.0.0/24" src-address=10.70.0.0/24
 
 # Allow access to the router for devices in VLAN40
 add action=accept chain=input comment="scriptconf: Allow access from 10.70.40.0/30" src-address=10.70.40.0/30
-
-# Drop all other traffic to the router
-add action=drop chain=input comment="scriptconf: Drop all other access to the router"
-
-# ====================
-# FORWARD CHAIN (Traffic Between Devices)
-# ====================
-
-# Fasttrack established and related connections for performance
-add action=fasttrack-connection chain=forward comment="scriptconf: Fasttrack established, related" connection-state=established,related hw-offload=yes
-
-# Allow devices in 10.70.0.0/24 to communicate with all devices
-add action=accept chain=forward comment="scriptconf: Allow 10.70.0.0/24 to communicate with all" src-address=10.70.0.0/24
 
 # Block all traffic from VLAN10 (10.70.10.0/24) to VLAN30 (10.70.30.0/24)
 add action=drop chain=forward comment="scriptconf: Block VLAN10 to VLAN30" src-address=10.70.10.0/24 dst-address=10.70.30.0/24
@@ -188,19 +187,35 @@ add action=accept chain=forward comment="scriptconf: Allow VLAN40 to VLAN30" src
 # Block traffic from VLAN40 (10.70.40.0/30) to VLAN10 (10.70.10.0/24)
 add action=drop chain=forward comment="scriptconf: Block VLAN40 to VLAN10" src-address=10.70.40.0/30 dst-address=10.70.10.0/24
 
-# Allow DNS traffic to external DNS servers
-add action=accept chain=forward protocol=udp dst-port=53 comment="scriptconf: Allow DNS UDP to WAN"
-add action=accept chain=forward protocol=tcp dst-port=53 comment="scriptconf: Allow DNS TCP to WAN"
+# Allow DNS queries (UDP) from Main LAN
+add chain=input action=accept protocol=udp dst-port=53 src-address=10.70.0.0/24 comment="scriptconf: Allow DNS UDP from Main LAN"
 
-# Accept established, related, untracked traffic between devices
-add action=accept chain=forward comment="scriptconf: Accept established, related, untracked" connection-state=established,related,untracked
+# Allow DNS queries (TCP) from Main LAN
+add chain=input action=accept protocol=tcp dst-port=53 src-address=10.70.0.0/24 comment="scriptconf: Allow DNS TCP from Main LAN"
+
+# Allow DNS queries (UDP) from VLAN10
+add chain=input action=accept protocol=udp dst-port=53 src-address=10.70.10.0/24 comment="scriptconf: Allow DNS UDP from VLAN10"
+
+# Allow DNS queries (TCP) from VLAN10
+add chain=input action=accept protocol=tcp dst-port=53 src-address=10.70.10.0/24 comment="scriptconf: Allow DNS TCP from VLAN10"
+
+# Allow DNS queries (UDP) from VLAN30
+add chain=input action=accept protocol=udp dst-port=53 src-address=10.70.30.0/24 comment="scriptconf: Allow DNS UDP from VLAN30"
+
+# Allow DNS queries (TCP) from VLAN30
+add chain=input action=accept protocol=tcp dst-port=53 src-address=10.70.30.0/24 comment="scriptconf: Allow DNS TCP from VLAN30"
+
+# Allow DNS queries (UDP) from VLAN40
+add chain=input action=accept protocol=udp dst-port=53 src-address=10.70.40.0/30 comment="scriptconf: Allow DNS UDP from VLAN40"
+
+# Allow DNS queries (TCP) from VLAN40
+add chain=input action=accept protocol=tcp dst-port=53 src-address=10.70.40.0/30 comment="scriptconf: Allow DNS TCP from VLAN40"
 
 # Drop invalid traffic
 add action=drop chain=forward comment="scriptconf: Drop invalid traffic" connection-state=invalid
 
-# Drop traffic from WAN not DSTNATed
-add action=drop chain=forward comment="scriptconf: Drop traffic from WAN not DSTNATed" connection-nat-state=!dstnat connection-state=new in-interface-list=WAN
-
+# Drop all other traffic to the router
+add action=drop chain=input comment="scriptconf: Drop all other access to the router"
 
 # ====================
 # NAT CONFIGURATION
