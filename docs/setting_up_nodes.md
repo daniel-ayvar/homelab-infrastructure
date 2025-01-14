@@ -37,11 +37,17 @@ __For minis01 - minis03__
 
 Once all nic are connected to the homelab router, then you can continue.
 
+## IP Lease Binding
+
+If you find the nodes not binding to a lease in the network, it may be necessary to restart the IP Lease service.
+
+```bash
+dhclient -r && dhclient
+```
+
 ## Setting up a SSH key
 To remove the need for password authentication for ssh, manually create a ssh key and add the public
 key to the target machines.
-
-
 
 ### **Step 1: Generate an SSH Key Pair**
 On your local machine, generate a new SSH key:
