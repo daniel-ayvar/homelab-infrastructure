@@ -4,9 +4,27 @@
   roles:
     - common
     - proxmox
-  become: true
   vars:
     cluster_name: "pve-cluster"
     master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
     is_master: "{{ inventory_hostname in groups['proxmox_master'] }}"
     proxmox_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
+
+- name: Configure Ceph on Master Node
+  hosts: proxmox_master
+  roles:
+    - ceph
+  vars:
+    cluster_name: "pve-cluster"
+    master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
+    is_master: true
+
+- name: Configure Ceph on Remaining Nodes Sequentially
+  hosts: proxmox_nodes
+  serial: 1
+  roles:
+    - ceph
+  vars:
+    cluster_name: "pve-cluster"
+    master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
+    is_master: false

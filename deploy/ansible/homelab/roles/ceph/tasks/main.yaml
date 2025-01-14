@@ -1,0 +1,66 @@
+- name: Gather package facts via APT
+  ansible.builtin.package_facts:
+    manager: apt
+
+- name: Determine if Ceph is already installed
+  ansible.builtin.set_fact:
+    ceph_installed: "{{ ('ceph' in ansible_facts.packages) or ('ceph-mon' in ansible_facts.packages) or ('ceph-osd' in ansible_facts.packages) }}"
+
+- name: Ensure Ceph is installed on the node only if not installed
+  ansible.builtin.expect:
+    command: "pveceph install --version squid --repository no-subscription"
+    responses:
+      "^.*Do you want to continue.*\\[Y/n\\].*$": "Y\n"
+    timeout: 200
+  when: not ceph_installed
+
+- name: Initialize Ceph configuration using pveceph init (master only)
+  ansible.builtin.command: pveceph init --network {{ ansible_host }}/24
+  args:
+    creates: /etc/pve/ceph.conf
+  when: is_master
+  register: ceph_init_result
+
+- name: Create Ceph Monitor on node using dedicated IP
+  ansible.builtin.command: pveceph createmon --mon-address {{ ansible_host }}
+  args:
+    creates: /var/lib/ceph/mon/ceph-{{ inventory_hostname }}
+  register: createmon_result
+
+- name: Create Ceph Manager on node
+  ansible.builtin.command: pveceph createmgr
+  args:
+    creates: /var/lib/ceph/mgr/ceph-{{ inventory_hostname }}
+  register: createmgr_result
+
+- name: Check if OSD directories exist
+  ansible.builtin.find:
+    paths: "/var/lib/ceph/osd"
+    patterns: "ceph-*"
+    file_type: directory
+  register: osd_dirs
+  changed_when: false
+  when: ceph_installed
+
+- name: Create OSD on this node (only if no existing OSD folder)
+  ansible.builtin.command: "pveceph createosd {{ proxmox_ceph_disk }}"
+  when:
+    - ceph_installed
+    - osd_dirs.matched == 0
+  register: createosd_result
+  changed_when: createosd_result.rc == 0
+
+- name: Check which pools currently exist
+  ansible.builtin.command: "pveceph pool ls"
+  register: existing_pools
+  changed_when: false
+  failed_when: false
+  when: is_master
+
+- name: Create a Ceph pool named 'rbd' (size=3, min_size=2, pg_num=32)
+  ansible.builtin.command: "pveceph pool create rbd --pg_num 32 --size 3 --min_size 2"
+  when:
+    - is_master
+    - "'rbd' not in existing_pools.stdout"
+  register: create_pool_result
+  changed_when: create_pool_result.rc == 0

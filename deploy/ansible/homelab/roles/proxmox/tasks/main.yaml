@@ -1,4 +1,8 @@
-- name: Check nag buster script installed
+---
+##########################################################################
+# 1. PVE Nag-Buster Installation Tasks
+##########################################################################
+- name: Check if pve-nag-buster script is installed
   ansible.builtin.stat:
     path: /usr/share/pve-nag-buster.sh
   register: pve_nag_buster_file
@@ -17,6 +21,9 @@
     creates: /usr/share/pve-nag-buster.sh
   when: not pve_nag_buster_file.stat.exists
 
+##########################################################################
+# 2. Proxmox Cluster Setup Tasks
+##########################################################################
 - name: Check if node is part of an existing Proxmox cluster
   ansible.builtin.command: pvecm status
   register: pvecm_status
@@ -47,7 +54,56 @@
     - not is_master
     - not_in_cluster
 
-- name: Reboot node after Proxmox configuration
+- name: Reboot node after Proxmox configuration if not in cluster
   ansible.builtin.reboot:
     reboot_timeout: 300
   when: not_in_cluster
+
+- name: Ensure ifupdown2 is installed (for networking reload)
+  ansible.builtin.apt:
+    name: ifupdown2
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Deploy /etc/network/interfaces from template
+  ansible.builtin.template:
+    src: ../files/interfaces.j2
+    dest: /etc/network/interfaces
+    mode: '0755'
+    backup: true
+  notify:
+    - Restart networking
+
+##########################################################################
+# Proxmox HA Group Creation by Checking /etc/pve/ha/groups.cfg
+##########################################################################
+- name: Check if /etc/pve/ha/groups.cfg exists
+  ansible.builtin.stat:
+    path: /etc/pve/ha/groups.cfg
+  register: ha_groups_file
+  changed_when: false
+  failed_when: false
+  when: is_master
+
+- name: Check if 'proxmox_ha_group' is already defined in groups.cfg
+  ansible.builtin.shell: "grep -q '^group: proxmox_ha_group$' /etc/pve/ha/groups.cfg"
+  register: group_check
+  changed_when: false
+  failed_when: false
+  when:
+    - is_master
+    - ha_groups_file.stat.exists
+
+- name: Combine proxmox_master and proxmox_nodes into a single list
+  ansible.builtin.set_fact:
+    all_proxmox_nodes: "{{ groups['proxmox_master']|default([]) + groups['proxmox_nodes']|default([]) }}"
+  when: is_master
+
+- name: Create a Proxmox HA group if missing
+  ansible.builtin.command: "ha-manager groupadd proxmox_ha_group --nodes {{ all_proxmox_nodes | join(',') }}"
+  when:
+    - is_master
+    - ha_groups_file.stat.exists
+    - group_check.rc != 0
+  register: create_ha_group
+  changed_when: create_ha_group.rc == 0

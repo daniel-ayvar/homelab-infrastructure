@@ -1,9 +1,9 @@
 ---
 - name: Add remote host to known_hosts
   ansible.builtin.known_hosts:
-    path: ~/.ssh/known_hosts
-    name: "{{ inventory_hostname }}"
-    key: "{{ lookup('pipe', 'ssh-keyscan -H ' ~ inventory_hostname) }}"
+    path: /root/.ssh/known_hosts
+    name: "{{ ansible_host }}"  # Use SSH endpoint
+    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + ansible_host) }}"
 
 - name: Packages | ensure apt list dir exists
   ansible.builtin.file:
@@ -38,20 +38,20 @@
     state: absent
   when: "'proxmox_nodes' in group_names"
 
-- name: Check if Ceph Quincy repo file exists
+- name: Check if Ceph squid repo file exists
   ansible.builtin.stat:
-    path: /etc/apt/sources.list.d/ceph-quincy.list
-  register: ceph_quincy_file
+    path: /etc/apt/sources.list.d/ceph-squid.list
+  register: ceph_squid_file
 
-- name: Add community Ceph Quincy repo for proxmox nodes if file does not exist
+- name: Add community Ceph squid repo for proxmox nodes if file does not exist
   ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/ceph-quincy.list
+    dest: /etc/apt/sources.list.d/ceph-squid.list
     content: |
-      deb http://download.proxmox.com/debian/ceph-quincy bookworm main
+      deb http://download.proxmox.com/debian/ceph-squid bookworm main
     mode: '0755'
   when:
     - "'proxmox_nodes' in group_names"
-    - not ceph_quincy_file.stat.exists
+    - not ceph_squid_file.stat.exists
 
 - name: Update apt cache
   ansible.builtin.apt:
@@ -131,8 +131,8 @@
 - name: Update SSH known_hosts for all homelab nodes
   ansible.builtin.known_hosts:
     path: /root/.ssh/known_hosts
-    name: "{{ item }}"
-    key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 ' ~ item) }}"
+    name: "{{ hostvars[item]['ansible_host'] | default(item) }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 ' ~ (hostvars[item]['ansible_host'] | default(item))) }}"
     state: present
   loop: "{{ groups['homelab_nodes'] }}"
   loop_control:
