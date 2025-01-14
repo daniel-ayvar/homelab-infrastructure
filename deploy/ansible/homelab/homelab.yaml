@@ -1,0 +1,6 @@
+---
+- name: Import NAS setup
+  import_playbook: nas.yaml
+
+- name: Import Proxmox setup
+  import_playbook: proxmox.yaml

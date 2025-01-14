@@ -3,4 +3,7 @@
 *.tfstate*
 *.tfvars*
 
+.venv/
+
 .DS_Store
+

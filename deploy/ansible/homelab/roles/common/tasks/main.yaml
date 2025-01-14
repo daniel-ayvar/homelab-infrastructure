@@ -1,0 +1,139 @@
+---
+- name: Add remote host to known_hosts
+  ansible.builtin.known_hosts:
+    path: ~/.ssh/known_hosts
+    name: "{{ inventory_hostname }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan -H ' ~ inventory_hostname) }}"
+
+- name: Packages | ensure apt list dir exists
+  ansible.builtin.file:
+    path: /var/lib/apt/lists/
+    state: directory
+    mode: '0755'
+
+- name: Remove pve-enterprise repo file on proxmox nodes
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/pve-enterprise.list
+    state: absent
+  when: "'proxmox_nodes' in group_names"
+
+- name: Check if no-subscription repo file exists
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pve-no-subscription.list
+  register: pve_no_subscript_file
+
+- name: Create no-subscription repo file for proxmox nodes
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/pve-no-subscription.list
+    content: |
+      deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
+    mode: '0755'
+  when:
+    - "'proxmox_nodes' in group_names"
+    - not pve_no_subscript_file.stat.exists
+
+- name: Remove Ceph repo for proxmox nodes
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/ceph.list
+    state: absent
+  when: "'proxmox_nodes' in group_names"
+
+- name: Check if Ceph Quincy repo file exists
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/ceph-quincy.list
+  register: ceph_quincy_file
+
+- name: Add community Ceph Quincy repo for proxmox nodes if file does not exist
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/ceph-quincy.list
+    content: |
+      deb http://download.proxmox.com/debian/ceph-quincy bookworm main
+    mode: '0755'
+  when:
+    - "'proxmox_nodes' in group_names"
+    - not ceph_quincy_file.stat.exists
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: true
+
+- name: Install extra packages (vim)
+  ansible.builtin.apt:
+    name: vim
+    state: present
+
+- name: Install Python 3 on remote nodes
+  ansible.builtin.apt:
+    name: python3
+    state: present
+
+- name: Install pip3 on remote nodes
+  ansible.builtin.apt:
+    name: python3-pip
+    state: present
+
+- name: Install python3-pexpect using apt
+  ansible.builtin.apt:
+    name: python3-pexpect
+    state: present
+
+- name: Ensure /root/.ssh directory exists
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    mode: "0700"
+
+- name: Check if authorized_keys file exists
+  ansible.builtin.stat:
+    path: /root/.ssh/authorized_keys
+  register: authorized_keys_stat
+
+- name: Ensure /root/.ssh/authorized_keys file exists
+  ansible.builtin.file:
+    path: /root/.ssh/authorized_keys
+    state: touch
+    mode: "0600"
+  when: not authorized_keys_stat.stat.exists
+
+- name: Check if local SSH public key exists
+  ansible.builtin.stat:
+    path: /root/.ssh/id_rsa.pub
+  register: local_pubkey_stat
+
+- name: Read the local SSH public key
+  ansible.builtin.command: cat /root/.ssh/id_rsa.pub
+  register: local_pubkey
+  changed_when: false
+  when: local_pubkey_stat.stat.exists
+
+- name: Set fact for local public key
+  ansible.builtin.set_fact:
+    my_ssh_public_key: "{{ local_pubkey.stdout }}"
+  when: local_pubkey_stat.stat.exists
+
+- name: Add all hosts’ public keys to authorized_keys
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ hostvars[item].my_ssh_public_key }}"
+    state: present
+  loop: "{{ groups['homelab_nodes'] }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - hostvars[item].my_ssh_public_key is defined
+    - hostvars[item].my_ssh_public_key | length > 0
+    - item != inventory_hostname
+
+- name: Update SSH known_hosts for all homelab nodes
+  ansible.builtin.known_hosts:
+    path: /root/.ssh/known_hosts
+    name: "{{ item }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan -t ed25519 ' ~ item) }}"
+    state: present
+  loop: "{{ groups['homelab_nodes'] }}"
+  loop_control:
+    label: "{{ item }}"

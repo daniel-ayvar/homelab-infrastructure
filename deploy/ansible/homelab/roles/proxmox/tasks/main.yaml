@@ -1,0 +1,53 @@
+- name: Check nag buster script installed
+  ansible.builtin.stat:
+    path: /usr/share/pve-nag-buster.sh
+  register: pve_nag_buster_file
+
+- name: Download the PVE nag-buster install script
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/foundObjects/pve-nag-buster/master/install.sh"
+    dest: "/tmp/install.sh"
+    mode: '0755'
+  when: not pve_nag_buster_file.stat.exists
+
+- name: Run the nag-buster install script
+  ansible.builtin.command: "/tmp/install.sh"
+  args:
+    chdir: "/tmp"
+    creates: /usr/share/pve-nag-buster.sh
+  when: not pve_nag_buster_file.stat.exists
+
+- name: Check if node is part of an existing Proxmox cluster
+  ansible.builtin.command: pvecm status
+  register: pvecm_status
+  ignore_errors: true
+  changed_when: false
+
+- name: Set fact if node is not in a cluster
+  ansible.builtin.set_fact:
+    not_in_cluster: "{{ 'does not exist' in pvecm_status.stderr }}"
+
+- name: Create cluster on the master node if not in a cluster
+  ansible.builtin.command: "pvecm create {{ cluster_name }}"
+  when:
+    - is_master
+    - not_in_cluster
+  register: create_cluster
+  changed_when: create_cluster.rc == 0
+
+- name: Use expect to provide password and confirm SSH connection for pvecm add
+  ansible.builtin.expect:
+    command: "pvecm add {{ master_ip }}"
+    responses:
+      "^Please enter superuser \\(root\\) password for '.*':\\s*": "{{ proxmox_password }}"
+      "Are you sure you want to continue connecting \\(yes/no\\)\\?": "yes"
+    timeout: 200
+  when:
+    - "'proxmox_nodes' in group_names"
+    - not is_master
+    - not_in_cluster
+
+- name: Reboot node after Proxmox configuration
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when: not_in_cluster
