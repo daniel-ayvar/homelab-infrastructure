@@ -19,3 +19,4 @@ ansible_port=22
 ansible_user=root
 ansible_python_interpreter=/usr/bin/python3
 node_network=10.70.30.0/24
+nfs_server_ip=10.70.30.10

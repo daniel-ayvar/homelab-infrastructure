@@ -107,3 +107,82 @@
     - group_check.rc != 0
   register: create_ha_group
   changed_when: create_ha_group.rc == 0
+
+
+##########################################################################
+# Additional Proxmox Tasks: Enable NFS Storages and Daily Backups
+##########################################################################
+
+- name: Ensure backup directory for Proxmox backups exists
+  ansible.builtin.file:
+    path: /mnt/proxmox_backups
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: is_master
+
+- name: Render storage.cfg template locally
+  ansible.builtin.set_fact:
+    rendered_storage_cfg: "{{ lookup('template', '../files/storage.cfg.j2') }}"
+  when: is_master
+
+- name: Compute checksum of rendered storage.cfg template
+  ansible.builtin.set_fact:
+    rendered_storage_checksum: "{{ rendered_storage_cfg | hash('sha1') }}"
+  when: is_master
+
+- name: Get remote storage.cfg details
+  ansible.builtin.stat:
+    path: /etc/pve/storage.cfg
+    checksum_algorithm: sha1
+  register: remote_storage_cfg
+  when: is_master
+
+- name: Update /etc/pve/storage.cfg if the rendered config differs
+  ansible.builtin.copy:
+    content: "{{ rendered_storage_cfg }}"
+    dest: /etc/pve/storage.cfg
+    mode: "{{ remote_storage_cfg.stat.mode | default('0640') }}"
+  notify:
+    - Restart pveproxy
+  when: is_master and (
+          (remote_storage_cfg.stat.exists is not defined) or
+          (not remote_storage_cfg.stat.exists) or
+          (remote_storage_cfg.stat.checksum != rendered_storage_checksum)
+        )
+
+##########################################################################
+# HA Pool Configuration for VMs
+##########################################################################
+- name: Check if Proxmox pool "vm_backup_pool" exists
+  ansible.builtin.shell: "grep -q '^pool: vm_backup_pool$' /etc/pve/pools.cfg"
+  register: pool_check
+  changed_when: false
+  failed_when: false
+  when: is_master
+
+- name: Create Proxmox pool "vm_backup_pool" for VM backups if not exists
+  ansible.builtin.command: >
+    pvesh create /pools --poolid vm_backup_pool --comment "Pool for VM backups"
+  when: is_master and pool_check.rc != 0
+  register: create_pool
+  failed_when: create_pool.rc != 0 and ("already exists" not in (create_pool.stderr | string))
+  changed_when: create_pool.rc == 0
+
+##########################################################################
+# VM Backup Job
+##########################################################################
+- name: Get current Proxmox backup jobs
+  ansible.builtin.command: "pvesh get /cluster/backup/jobs"
+  register: current_backup_jobs
+  changed_when: false
+  failed_when: false
+  when: is_master
+
+- name: Create Proxmox backup job for pool "vm_backup_pool" if not exists
+  ansible.builtin.command: >
+    pvesh create /cluster/backup --schedule '*-*-* 11:00:00' --pool vm_backup_pool --storage nfs_data --maxfiles 2 --enabled 1
+  when: is_master and ("vm_backup_pool" not in current_backup_jobs.stdout)
+  register: create_backup_job
+  changed_when: create_backup_job.rc == 0

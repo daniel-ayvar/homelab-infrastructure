@@ -147,3 +147,5 @@ jobs:
           ansible-playbook -i inventory homelab.yaml --key-file ~/.ssh/id_rsa
         env:
           PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
+          BACKBLAZE_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
+          BACKBLAZE_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
