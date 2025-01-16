@@ -1,0 +1,83 @@
+- name: Install NFS package
+  ansible.builtin.package:
+    name: nfs-kernel-server
+    state: present
+
+- name: Install rclone package
+  ansible.builtin.package:
+    name: rclone
+    state: present
+
+- name: Ensure mount directory for /dev/sda exists
+  ansible.builtin.file:
+    path: /mnt/data
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Ensure mount directory for /dev/sdb1 exists
+  ansible.builtin.file:
+    path: /mnt/plex
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Mount /dev/sda on /mnt/data
+  ansible.posix.mount:
+    path: /mnt/data
+    src: /dev/sda1
+    fstype: auto
+    opts: defaults
+    state: mounted
+
+- name: Mount /dev/sdb1 on /mnt/plex
+  ansible.posix.mount:
+    path: /mnt/plex
+    src: /dev/sdb1
+    fstype: auto
+    opts: defaults
+    state: mounted
+
+- name: Deploy /etc/exports for NFS
+  ansible.builtin.copy:
+    content: |
+      /mnt/data {{ ansible_host }}/24(rw,sync,no_subtree_check)
+      /mnt/plex {{ ansible_host }}/24(rw,sync,no_subtree_check)
+    dest: /etc/exports
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart NFS server
+
+- name: Enable and start NFS service
+  ansible.builtin.service:
+    name: nfs-server
+    enabled: true
+    state: started
+
+- name: Ensure rclone config directory exists
+  ansible.builtin.file:
+    path: /root/.config/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Deploy rclone configuration for Backblaze B2 from template
+  ansible.builtin.template:
+    src: ../files/rclone.conf.j2
+    dest: /root/.config/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Create cron job for daily rclone sync at 2 AM
+  ansible.builtin.cron:
+    name: "Daily rclone sync"
+    user: root
+    minute: "0"
+    hour: "2"
+    job: "/usr/bin/rclone sync /mnt/data backblaze:{{ backblaze_bucket }} --log-file /var/log/rclone-sync.log --log-level INFO"
+    state: present

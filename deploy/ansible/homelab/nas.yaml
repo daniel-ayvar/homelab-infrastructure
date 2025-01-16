@@ -3,4 +3,10 @@
   hosts: nas_nodes
   roles:
     - common
-  become: true
+    - nas
+  vars:
+    cluster_name: "pve-cluster"
+    is_master: "{{ inventory_hostname in groups['proxmox_master'] }}"
+    backblaze_key_id: "{{ lookup('env', 'BACKBLAZE_KEY_ID') }}"
+    backblaze_application_key: "{{ lookup('env', 'BACKBLAZE_APPLCATION_KEY') }}"
+    backblaze_bucket: "homelab-nas-storage"

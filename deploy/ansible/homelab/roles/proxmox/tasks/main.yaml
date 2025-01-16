@@ -96,7 +96,7 @@
 
 - name: Combine proxmox_master and proxmox_nodes into a single list
   ansible.builtin.set_fact:
-    all_proxmox_nodes: "{{ groups['proxmox_master']|default([]) + groups['proxmox_nodes']|default([]) }}"
+    all_proxmox_nodes: "{{ groups['proxmox_master'] | default([]) + groups['proxmox_nodes'] | default([]) }}"
   when: is_master
 
 - name: Create a Proxmox HA group if missing

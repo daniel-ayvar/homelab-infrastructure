@@ -6,7 +6,6 @@
     - proxmox
   vars:
     cluster_name: "pve-cluster"
-    master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
     is_master: "{{ inventory_hostname in groups['proxmox_master'] }}"
     proxmox_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
 
@@ -16,7 +15,6 @@
     - ceph
   vars:
     cluster_name: "pve-cluster"
-    master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
     is_master: true
 
 - name: Configure Ceph on Remaining Nodes Sequentially
@@ -26,5 +24,4 @@
     - ceph
   vars:
     cluster_name: "pve-cluster"
-    master_ip: "{{ hostvars[groups['proxmox_master'][0]].proxmox_ip_address }}"
     is_master: false
