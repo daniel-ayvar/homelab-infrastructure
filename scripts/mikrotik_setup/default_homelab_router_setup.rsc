@@ -1,4 +1,10 @@
+
 /delay delay-time=15s
+
+/interface bonding
+add name=bond1 mode=802.3ad lacp-rate=1 slaves=ether3,ether4 comment="scriptconf: LACP Bond for first dual-nic node"
+add name=bond2 mode=802.3ad lacp-rate=1 slaves=ether5,ether6 comment="scriptconf: LACP Bond for second dual-nic node"
+add name=bond3 mode=802.3ad lacp-rate=1 slaves=ether7,ether8 comment="scriptconf: LACP Bond for third dual-nic node"
 
 /interface bridge
 add admin-mac=D4:01:C3:64:E2:D1 auto-mac=no comment=scriptconf name=bridge
@@ -14,29 +20,21 @@ add comment=scriptconf name=LAN
 add comment=scriptconf interface=bridge list=LAN
 add comment=scriptconf interface=ether1 list=LAN
 add comment=scriptconf interface=ether2 list=LAN
-add comment=scriptconf interface=ether3 list=LAN
-add comment=scriptconf interface=ether4 list=LAN
-add comment=scriptconf interface=ether5 list=LAN
-add comment=scriptconf interface=ether6 list=LAN
-add comment=scriptconf interface=ether7 list=LAN
-add comment=scriptconf interface=ether8 list=LAN
+add comment=scriptconf interface=bond1 list=LAN
+add comment=scriptconf interface=bond2 list=LAN
+add comment=scriptconf interface=bond3 list=LAN
 add comment=scriptconf interface=upstream list=WAN
-add comment=scriptconf interface=sfp-sfpplus2 list=LAN
 
 /interface bridge port
 add bridge=bridge comment=scriptconf interface=ether1
 add bridge=bridge comment=scriptconf interface=ether2
-add bridge=bridge comment=scriptconf interface=ether3
-add bridge=bridge comment=scriptconf interface=ether4
-add bridge=bridge comment=scriptconf interface=ether5
-add bridge=bridge comment=scriptconf interface=ether6
-add bridge=bridge comment=scriptconf interface=ether7
-add bridge=bridge comment=scriptconf interface=ether8
+add bridge=bridge comment=scriptconf interface=bond1
+add bridge=bridge comment=scriptconf interface=bond2
+add bridge=bridge comment=scriptconf interface=bond3
 add bridge=bridge comment=scriptconf interface=upstream
-add bridge=bridge comment=scriptconf interface=sfp-sfpplus2
 
 /ip dhcp-client
-add interface=bridge
+add interface=bridge comment="scriptconf: DHCP Client for bridge"
 
 /system clock
 set time-zone-name=America/Chicago
