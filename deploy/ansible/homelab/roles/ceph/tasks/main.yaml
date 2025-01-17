@@ -64,3 +64,63 @@
     - "'rbd' not in existing_pools.stdout"
   register: create_pool_result
   changed_when: create_pool_result.rc == 0
+
+- name: Create Ceph Metadata Server on node
+  ansible.builtin.command: pveceph mds create
+  args:
+    creates: /var/lib/ceph/mds/ceph-{{ inventory_hostname }}
+  register: createmds_result
+
+- name: Create Ceph filesystem
+  ansible.builtin.command: >
+    pveceph fs create --add-storage true --name cephfs --pg_num 128
+  when: is_master
+  args:
+    creates: /var/lib/ceph/fs/cephfs
+  register: create_cephfs_result
+  changed_when: create_cephfs_result.rc == 1
+  failed_when: create_cephfs_result.rc != 0 and
+               ('already exist' not in create_cephfs_result.stderr)
+
+- name: Combine proxmox_master and proxmox_nodes into a single list for CephFS
+  ansible.builtin.set_fact:
+    all_proxmox_nodes: "{{ groups['proxmox_master'] | default([]) + groups['proxmox_nodes'] | default([]) }}"
+  when: is_master
+
+- name: Gather IP addresses of all_proxmox_nodes
+  ansible.builtin.set_fact:
+    all_proxmox_nodes_ips: >-
+      {{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}
+  when: is_master
+
+- name: Check if CephFS storage is already defined in Proxmox
+  ansible.builtin.shell: |
+    grep -q '^cephfs:' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
+  register: cephfs_check_result
+  changed_when: false
+
+- name: Check if CephFS mount path exists
+  ansible.builtin.stat:
+    path: /mnt/pve/cephfs
+  register: cephfs_path_check
+  changed_when: false
+
+- name: Configure storage drive CephFS in Proxmox using node IPs
+  ansible.builtin.command: >
+    pvesm add cephfs cephfs
+    --monhost {{ all_proxmox_nodes_ips | join(',') }}
+    --path /mnt/pve/cephfs
+    --content vztmpl,iso,backup,snippets
+    --username admin
+    --fs-name cephfs
+  when: >
+    is_master and
+    cephfs_check_result.stdout == "not_exists" and
+    not cephfs_path_check.stat.exists
+  register: cephfs_add_result
+  failed_when: >
+    cephfs_add_result.rc != 0 and
+    ('already defined' not in cephfs_add_result.stderr.lower())
+  changed_when: >
+    cephfs_add_result.rc == 0 and
+    ('already defined' not in cephfs_add_result.stderr.lower())
