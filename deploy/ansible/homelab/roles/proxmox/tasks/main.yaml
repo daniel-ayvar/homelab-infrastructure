@@ -50,7 +50,7 @@
       "Are you sure you want to continue connecting \\(yes/no\\)\\?": "yes"
     timeout: 200
   when:
-    - "'proxmox_nodes' in group_names"
+    - "'proxmox_nodes' in group_names or 'proxmox_master' in group_names"
     - not is_master
     - not_in_cluster
 
