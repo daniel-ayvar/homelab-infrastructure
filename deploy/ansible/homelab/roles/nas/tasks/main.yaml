@@ -81,3 +81,12 @@
     hour: "2"
     job: "/usr/bin/rclone sync /mnt/data backblaze:{{ backblaze_bucket }} --log-file /var/log/rclone-sync.log --log-level INFO"
     state: present
+
+- name: Deploy /etc/network/interfaces from template
+  ansible.builtin.template:
+    src: ../files/interfaces.j2
+    dest: /etc/network/interfaces
+    mode: '0755'
+    backup: true
+  notify:
+    - Restart networking

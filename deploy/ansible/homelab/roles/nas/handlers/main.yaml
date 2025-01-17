@@ -3,3 +3,8 @@
   ansible.builtin.service:
     name: nfs-server
     state: restarted
+
+- name: Restart networking
+  ansible.builtin.systemd:
+    name: networking
+    state: restarted
