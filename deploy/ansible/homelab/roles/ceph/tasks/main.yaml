@@ -89,21 +89,22 @@
 
 - name: Gather IP addresses of all_proxmox_nodes
   ansible.builtin.set_fact:
-    all_proxmox_nodes_ips: >-
-      {{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}
+    all_proxmox_nodes_ips: "{{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}"
   when: is_master
 
-- name: Check if CephFS storage is already defined in Proxmox
+- name: Check if CephFS storage block is already defined in Proxmox
   ansible.builtin.shell: |
-    grep -q '^cephfs:' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
+    grep -q '^cephfs: cephfs' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
   register: cephfs_check_result
   changed_when: false
+  when: is_master
 
 - name: Check if CephFS mount path exists
   ansible.builtin.stat:
     path: /mnt/pve/cephfs
   register: cephfs_path_check
   changed_when: false
+  when: is_master
 
 - name: Configure storage drive CephFS in Proxmox using node IPs
   ansible.builtin.command: >
@@ -113,10 +114,7 @@
     --content vztmpl,iso,backup,snippets
     --username admin
     --fs-name cephfs
-  when: >
-    is_master and
-    cephfs_check_result.stdout == "not_exists" and
-    not cephfs_path_check.stat.exists
+  when: is_master and cephfs_check_result.stdout == "not_exists" and not cephfs_path_check.stat.exists
   register: cephfs_add_result
   failed_when: >
     cephfs_add_result.rc != 0 and
@@ -124,3 +122,10 @@
   changed_when: >
     cephfs_add_result.rc == 0 and
     ('already defined' not in cephfs_add_result.stderr.lower())
+
+- name: Confirm CephFS storage configuration block exists in /etc/pve/storage.cfg
+  ansible.builtin.shell: |
+    grep -q '^cephfs: cephfs' /etc/pve/storage.cfg && echo "found" || echo "not found"
+  register: cephfs_confirm
+  changed_when: false
+  when: is_master

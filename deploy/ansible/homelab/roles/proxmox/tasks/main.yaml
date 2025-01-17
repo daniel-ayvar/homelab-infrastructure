@@ -112,7 +112,6 @@
 ##########################################################################
 # Additional Proxmox Tasks: Enable NFS Storages and Daily Backups
 ##########################################################################
-
 - name: Ensure backup directory for Proxmox backups exists
   ansible.builtin.file:
     path: /mnt/proxmox_backups
@@ -122,35 +121,31 @@
     mode: '0755'
   when: is_master
 
-- name: Render storage.cfg template locally
-  ansible.builtin.set_fact:
-    rendered_storage_cfg: "{{ lookup('template', '../files/storage.cfg.j2') }}"
-  when: is_master
-
-- name: Compute checksum of rendered storage.cfg template
-  ansible.builtin.set_fact:
-    rendered_storage_checksum: "{{ rendered_storage_cfg | hash('sha1') }}"
-  when: is_master
-
-- name: Get remote storage.cfg details
-  ansible.builtin.stat:
+- name: Append NFS storage configuration for /mnt/data to /etc/pve/storage.cfg if not already present
+  ansible.builtin.blockinfile:
     path: /etc/pve/storage.cfg
-    checksum_algorithm: sha1
-  register: remote_storage_cfg
+    marker: "# {mark} ANSIBLE NFS STORAGE DATA"
+    block: |
+      # NFS Storage using /mnt/data
+      nfs: nfs_data
+          server {{ nfs_server_ip }}
+          export /mnt/data
+          options vers=3
+          content iso,backup,rootdir
   when: is_master
 
-- name: Update /etc/pve/storage.cfg if the rendered config differs
-  ansible.builtin.copy:
-    content: "{{ rendered_storage_cfg }}"
-    dest: /etc/pve/storage.cfg
-    mode: "{{ remote_storage_cfg.stat.mode | default('0640') }}"
-  notify:
-    - Restart pveproxy
-  when: is_master and (
-          (remote_storage_cfg.stat.exists is not defined) or
-          (not remote_storage_cfg.stat.exists) or
-          (remote_storage_cfg.stat.checksum != rendered_storage_checksum)
-        )
+- name: Append NFS storage configuration for /mnt/plex to /etc/pve/storage.cfg if not already present
+  ansible.builtin.blockinfile:
+    path: /etc/pve/storage.cfg
+    marker: "# {mark} ANSIBLE NFS STORAGE PLEX"
+    block: |
+      # NFS Storage using /mnt/plex
+      nfs: nfs_plex
+          server {{ nfs_server_ip }}
+          export /mnt/plex
+          options vers=3
+          content iso,backup,rootdir
+  when: is_master
 
 ##########################################################################
 # HA Pool Configuration for VMs
