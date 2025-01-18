@@ -110,8 +110,39 @@
 
 
 ##########################################################################
-# Additional Proxmox Tasks: Enable NFS Storages and Daily Backups
+# Create storage volumes
 ##########################################################################
+
+# pvesm add lvm local-lvm
+- name: Check if local_lvm already created
+  ansible.builtin.shell: |
+    grep -q '^lvm: local_lvm' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
+  register: local_lvm_check_result
+  changed_when: false
+  when: is_master
+
+- name: Configure lvm storage for local_lvm in Proxmox
+  ansible.builtin.command: >
+    pvesm add lvm local_lvm
+    --vgname pve
+    --content rootdir,images
+  when: is_master and local_lvm_check_result.stdout == "not_exists"
+  register: local_lvm_add_result
+  failed_when: >
+    local_lvm_add_result.rc != 0 and
+    ('already defined' not in local_lvm_add_result.stderr.lower())
+  changed_when: >
+    local_lvm_add_result.rc == 0 and
+    ('already defined' not in local_lvm_add_result.stderr.lower())
+
+- name: Confirm lvm storage for local_lvm in Proxmox
+  ansible.builtin.shell: |
+    grep -q '^lvm: local_lvm' /etc/pve/storage.cfg && echo "found" || echo "not found"
+  register: local_lvm_confirm
+  changed_when: false
+  when: is_master
+
+# nfs: nfs_data
 - name: Check if NFS storage block for /mnt/data is already defined in Proxmox
   ansible.builtin.shell: |
     grep -q '^nfs: nfs_data' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
@@ -142,6 +173,7 @@
   changed_when: false
   when: is_master
 
+# nfs: nfs_plex
 - name: Check if NFS storage block for /mnt/plex is already defined in Proxmox
   ansible.builtin.shell: |
     grep -q '^nfs: nfs_plex' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
