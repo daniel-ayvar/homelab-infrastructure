@@ -125,7 +125,7 @@
     --server {{ nfs_server_ip }}
     --export /mnt/data
     --options vers=3
-    --content backup,rootdir
+    --content rootdir,backup,snippets,images,vztmpl,import,iso
   when: is_master and nfs_data_check_result.stdout == "not_exists"
   register: nfs_data_add_result
   failed_when: >
