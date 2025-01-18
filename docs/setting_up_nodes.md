@@ -34,16 +34,67 @@ __For minis01 - minis03__
 * network is initialized with eth2
 * gateway & dns is set to vlan30 gateway
 * host url set to <NODE_NAME>.pve.local
+* install the os on a 500gb partition
+* make swap size 64gb
 
 Once all nic are connected to the homelab router, then you can continue.
 
+### **Initializing Extra Disk Space (for minis01 – minis03)**
+
+After installing the OS and configuring your swap, you will have unallocated disk space on your NVMe drive (e.g. approximately **1.3 TB** available). Follow these steps to add that space to the existing LVM volume group (`pve`):
+
+1. **Identify the Unallocated Space**
+   Check your current disk layout with:
+   ```bash
+   lsblk
+   ```
+   You should see that your NVMe disk (e.g. `/dev/nvme0n1`) has unallocated space not used by existing partitions.
+
+2. **Create a New Partition**
+   Use `fdisk` (or `parted`) to create a new partition from the unused space. In this example, we assume you will create partition `/dev/nvme0n1p4`:
+   ```bash
+   fdisk /dev/nvme0n1
+   ```
+   Within `fdisk`:
+   - Press **n** to create a new partition.
+   - Select the default partition number (likely `4`).
+   - Accept the default starting sector (after the last partition).
+   - Accept the default ending sector or specify the last sector to use the remaining available space.
+   - Press **t** to change the partition type.
+   - Enter the new partition number (e.g. **4**).
+   - Set the type to **8e** (Linux LVM).
+   - Press **w** to write the changes and exit.
+
+3. **Inform the Kernel of Changes**
+   Notify the OS of the new partition table:
+   ```bash
+   partprobe /dev/nvme0n1
+   ```
+
+4. **Initialize the New Partition as a Physical Volume**
+   Create a new LVM physical volume:
+   ```bash
+   pvcreate /dev/nvme0n1p4
+   ```
+
+5. **Extend the Volume Group**
+   Add the new physical volume to your existing volume group `pve`:
+   ```bash
+   vgextend pve /dev/nvme0n1p4
+   ```
+   You can verify the extra free space with:
+   ```bash
+   vgdisplay pve
+   ```
+
 ## IP Lease Binding
 
-If you find the nodes not binding to a lease in the network, it may be necessary to restart the IP Lease service.
+If you find the nodes not binding to a lease in the network, it may be necessary to restart the IP Lease service to start.
 
 ```bash
 dhclient -r && dhclient
 ```
+The binding of the lease will be fixed once ansible runs successfully on the node.
 
 ## Setting up a SSH key
 To remove the need for password authentication for ssh, manually create a ssh key and add the public
