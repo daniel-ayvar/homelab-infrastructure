@@ -2,6 +2,16 @@
   ansible.builtin.package_facts:
     manager: apt
 
+- name: Combine proxmox_master and proxmox_nodes into a single list for CephFS
+  ansible.builtin.set_fact:
+    all_proxmox_nodes: "{{ groups['proxmox_master'] | default([]) + groups['proxmox_nodes'] | default([]) }}"
+  when: is_master
+
+- name: Gather IP addresses of all_proxmox_nodes
+  ansible.builtin.set_fact:
+    all_proxmox_nodes_ips: "{{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}"
+  when: is_master
+
 - name: Determine if Ceph is already installed
   ansible.builtin.set_fact:
     ceph_installed: "{{ ('ceph' in ansible_facts.packages) or ('ceph-mon' in ansible_facts.packages) or ('ceph-osd' in ansible_facts.packages) }}"
@@ -57,13 +67,43 @@
   failed_when: false
   when: is_master
 
-- name: Create a Ceph pool named 'rbd' (size=3, min_size=2, pg_num=32)
-  ansible.builtin.command: "pveceph pool create rbd --pg_num 32 --size 3 --min_size 2"
+- name: Create a Ceph pool named 'cephfs_pool' (size=3, min_size=2, pg_num=32)
+  ansible.builtin.command: "pveceph pool create cephfs_pool --pg_num 32 --size 3 --min_size 2"
   when:
     - is_master
-    - "'rbd' not in existing_pools.stdout"
+    - "'cephfs_pool' not in existing_pools.stdout"
   register: create_pool_result
   changed_when: create_pool_result.rc == 0
+
+- name: Check if CephFS storage block is already defined in Proxmox
+  ansible.builtin.shell: |
+    grep -q '^rbd: cephfs_storage' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
+  register: cephfs_storage_check_result
+  changed_when: false
+  when: is_master
+
+- name: Configure storage drive CephFS in Proxmox using node IPs
+  ansible.builtin.command: >
+    pvesm add rbd cephfs_storage
+    --monhost {{ all_proxmox_nodes_ips | join(',') }}
+    --pool cephfs_pool
+    --content images,rootdir
+    --krbd 0
+  when: is_master and cephfs_storage_check_result.stdout == "not_exists"
+  register: cephfs_add_result
+  failed_when: >
+    cephfs_add_result.rc != 0 and
+    ('already defined' not in cephfs_add_result.stderr.lower())
+  changed_when: >
+    cephfs_add_result.rc == 0 and
+    ('already defined' not in cephfs_add_result.stderr.lower())
+
+- name: Confirm CephFS storage configuration block exists in /etc/pve/storage.cfg
+  ansible.builtin.shell: |
+    grep -q '^rbd: cephfs_storage' /etc/pve/storage.cfg && echo "found" || echo "not found"
+  register: cephfs_storage_confirm
+  changed_when: false
+  when: is_master
 
 - name: Create Ceph Metadata Server on node
   ansible.builtin.command: pveceph mds create
@@ -81,16 +121,6 @@
   changed_when: create_cephfs_result.rc == 1
   failed_when: create_cephfs_result.rc != 0 and
                ('already exist' not in create_cephfs_result.stderr)
-
-- name: Combine proxmox_master and proxmox_nodes into a single list for CephFS
-  ansible.builtin.set_fact:
-    all_proxmox_nodes: "{{ groups['proxmox_master'] | default([]) + groups['proxmox_nodes'] | default([]) }}"
-  when: is_master
-
-- name: Gather IP addresses of all_proxmox_nodes
-  ansible.builtin.set_fact:
-    all_proxmox_nodes_ips: "{{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}"
-  when: is_master
 
 - name: Check if CephFS storage block is already defined in Proxmox
   ansible.builtin.shell: |
@@ -123,7 +153,7 @@
     cephfs_add_result.rc == 0 and
     ('already defined' not in cephfs_add_result.stderr.lower())
 
-- name: Confirm CephFS storage configuration block exists in /etc/pve/storage.cfg
+- name: Confirm CephFS configuration block exists in /etc/pve/storage.cfg
   ansible.builtin.shell: |
     grep -q '^cephfs: cephfs' /etc/pve/storage.cfg && echo "found" || echo "not found"
   register: cephfs_confirm
