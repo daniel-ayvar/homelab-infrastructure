@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'deploy/**'
+      - 'scripts/util/**'
+      - '.github/workflows/ci.yaml'
   workflow_dispatch:
 
 jobs:
