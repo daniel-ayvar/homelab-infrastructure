@@ -44,49 +44,42 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform Init
-        working-directory: ./deploy/terraform/network
-        run: terraform init
+        run: terraform -chdir=deploy/terraform/ init
         env:
           TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
           TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
           TF_VAR_router_core_host_url: https://10.70.30.1
 
       - name: Terraform Format
-        working-directory: ./deploy/terraform/network
-        run: terraform fmt -check
+        run: terraform -chdir=deploy/terraform/ fmt -check
 
       - name: Write Network Terraform vars file from secret
-        working-directory: ./deploy/terraform/network
-        run: echo "${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}"  | base64 --decode > terraform.tfvars.json
+        run: echo "${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}"  | base64 --decode > ./deploy/terraform/terraform.tfvars.json
         shell: bash
 
       - name: Terraform Validate
-        working-directory: ./deploy/terraform/network
-        run: terraform validate
+        run: terraform -chdir=./deploy/terraform/ validate
 
       - name: Terraform Plan
-        working-directory: ./deploy/terraform/network
         id: plan
-        run: terraform plan -out=tfplan
+        run: terraform -chdir=./deploy/terraform/ plan -out=tfplan
         env:
           TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
           TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
           TF_VAR_router_core_host_url: https://10.70.30.1
 
       - name: Terraform Apply
-        working-directory: ./deploy/terraform/network
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve tfplan
+        run: terraform -chdir=./deploy/terraform/ apply -auto-approve tfplan
         env:
           TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
           TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
           TF_VAR_router_core_host_url: https://10.70.30.1
 
       - name: Terraform Output
-        working-directory: ./deploy/terraform/network
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          terraform output -json current_vlan30_leases > dhcp_leases_by_node.json
+          terraform -chdir=./deploy/terraform/ output -json current_vlan30_leases > ./dhcp_leases_by_node.json
           echo "Terraform output generated successfully."
         env:
           TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
@@ -101,7 +94,7 @@ jobs:
 
       - name: Add current_lease IPs to known_hosts
         run: |
-          JSON_FILE="./deploy/terraform/network/dhcp_leases_by_node.json"
+          JSON_FILE="./dhcp_leases_by_node.json"
 
           if ! command -v jq &> /dev/null
           then
@@ -127,7 +120,7 @@ jobs:
 
       - name: Run Python Script to Refresh DHCP Leases
         run: |
-          python3 ./scripts/util/refresh-node-dhcp-lease.py ./deploy/terraform/network/dhcp_leases_by_node.json
+          python3 ./scripts/util/refresh-node-dhcp-lease.py ./dhcp_leases_by_node.json
 
       - name: Install Ansible Tools
         run: |
@@ -136,15 +129,13 @@ jobs:
           pip install ansible-lint
 
       - name: Run Ansible Lint
-        working-directory: ./deploy/ansible/homelab
         run: |
           pip install ansible-lint
-          ansible-lint homelab.yaml
+          ansible-lint deploy/ansible/homelab.yaml
 
       - name: Run Ansible Playbook
-        working-directory: ./deploy/ansible/homelab
         run: |
-          ansible-playbook -i inventory homelab.yaml --key-file ~/.ssh/id_rsa
+          ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file ~/.ssh/id_rsa
         env:
           PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
           BACKBLAZE_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
