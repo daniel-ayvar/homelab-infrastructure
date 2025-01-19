@@ -2,8 +2,10 @@
 *.terraform*
 *.tfstate*
 *.tfvars*
+*.tmp
 
 .venv/
+.env
 
 .DS_Store
 

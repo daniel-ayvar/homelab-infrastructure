@@ -1,4 +1,4 @@
-name: Homelab Infrastructure Deployment
+name: Homelab Infrastructure
 
 on:
   push:
@@ -6,19 +6,15 @@ on:
       - main
     paths:
       - 'deploy/**'
-      - 'scripts/util/**'
       - '.github/workflows/ci.yaml'
   workflow_dispatch:
 
 jobs:
   homelab-infra:
-    name: Homelab Infrastructure
+    name: Deployment
     runs-on: ubuntu-latest
-
     env:
-      TF_VAR_router_core_password: ${{ secrets.ROUTER_CORE_PASSWORD }}
-      TF_VAR_router_core_username: ${{ secrets.ROUTER_CORE_USERNAME }}
-      TF_VAR_router_core_host_url: "https://10.70.30.1"
+      HOMELAB_SSH_KEY_PATH: "/home/runner/.ssh/id_ed25519_homelab"
 
     steps:
       - name: Checkout Repository
@@ -32,17 +28,6 @@ jobs:
           tags: tag:ci
           args: --exit-node=100.83.21.9 --accept-risk=all
 
-      - name: Verify Tailscale Connection
-        run: |
-          echo "Waiting for Tailscale to establish connection..."
-          sleep 10
-          if ping -c 4 10.70.30.1 > /dev/null 2>&1; then
-            echo "Ping to 10.70.30.1 successful."
-          else
-            echo "Ping to 10.70.30.1 failed. Exiting."
-            exit 1
-          fi
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -50,78 +35,21 @@ jobs:
           cli_config_credentials_token: ${{ secrets.TERRAFORM_HOMELAB_TOKEN }}
           terraform_wrapper: false
 
-      - name: Terraform Init
-        run: terraform -chdir=deploy/terraform/ init
-
-      - name: Terraform Format Check
-        run: terraform -chdir=deploy/terraform/ fmt -check
-
-      - name: Write Network Terraform Vars File
-        run: |
-          echo "${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}" | base64 --decode > ./deploy/terraform/terraform.tfvars.json
-        shell: bash
-
-      - name: Terraform Validate
-        run: terraform -chdir=./deploy/terraform/ validate
-
-      - name: Terraform Plan
-        id: plan
-        run: terraform -chdir=./deploy/terraform/ plan -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform -chdir=./deploy/terraform/ apply -auto-approve tfplan
-
-      - name: Terraform Output
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          terraform -chdir=./deploy/terraform/ output -json current_vlan30_leases > ./dhcp_leases_by_node.json
-          echo "Terraform output generated successfully."
-
-      - name: Install SSH Private Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HOMELAB_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-      - name: Add current lease IPs to known_hosts
-        run: |
-          JSON_FILE="./dhcp_leases_by_node.json"
-
-          # Install jq if not present
-          if ! command -v jq &> /dev/null; then
-              echo "jq not found, installing..."
-              sudo apt-get update && sudo apt-get install -y jq
-          fi
-
-          CURRENT_LEASE_IPS=$(jq -r '.[].current_lease' "$JSON_FILE" | sort -u)
-          echo "Adding the following IPs to known_hosts:"
-          echo "$CURRENT_LEASE_IPS"
-
-          mkdir -p ~/.ssh
-          touch ~/.ssh/known_hosts
-
-          for IP in $CURRENT_LEASE_IPS; do
-            echo "Scanning SSH keys for ${IP}..."
-            ssh-keyscan -H "$IP" >> ~/.ssh/known_hosts 2>/dev/null || echo "Failed to scan ${IP}"
-          done
-
-          sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
-
-      - name: Refresh DHCP Leases via Python Script
-        run: python3 ./scripts/util/refresh-node-dhcp-lease.py ./dhcp_leases_by_node.json
-
       - name: Install Ansible Tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install ansible ansible-lint
+        run: ./scripts/ci/install_ansible_tools.sh
 
-      - name: Run Ansible Lint
-        run: ansible-lint deploy/ansible/homelab.yaml
-
-      - name: Run Ansible Playbook
-        run: ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file ~/.ssh/id_rsa
+      - name: Setup SSH Key
+        run: ./scripts/ci/ssh_key_setup.sh
         env:
+          HOMELAB_SSH_KEY_B64: ${{ secrets.HOMELAB_SSH_KEY_B64 }}
+
+      - name: Run Deployment Script
+        run: ./deploy/deploy.sh
+        env:
+          ROUTER_CORE_PASSWORD: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          ROUTER_CORE_USERNAME: ${{ secrets.ROUTER_CORE_USERNAME }}
+          ROUTER_CORE_HOST_URL: "https://10.70.30.1"
+          TERRAFORM_VARS_NETWORK_B64: ${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}
           PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
           BACKBLAZE_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
           BACKBLAZE_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
