@@ -1,0 +1,55 @@
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # Upstream block for Proxmox load balancing
+    upstream proxmox {
+        ip_hash;
+        server 10.70.30.12:8006;
+        server 10.70.30.14:8006;
+        server 10.70.30.16:8006;
+    }
+
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        server_name homelab.lan;
+
+        # SSL certificate configuration
+        ssl_certificate /secrets/pve-ssl.pem;
+        ssl_certificate_key /secrets/pve-ssl.key;
+
+        # Disable proxy redirect
+        proxy_redirect off;
+
+        location / {
+            proxy_pass https://proxmox;
+            proxy_buffering off;
+            client_max_body_size 0;
+
+            # Timeout settings
+            proxy_connect_timeout 3600s;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            send_timeout 3600s;
+
+            # WebSocket support for noVNC
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+
+            # Header forwarding
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header Cookie $http_cookie;
+        }
+    }
+}
+

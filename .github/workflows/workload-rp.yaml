@@ -1,0 +1,26 @@
+
+name: Reverse Proxy Workload
+
+on:
+  push:
+    paths:
+      - 'workloads/reverse-proxy/*'
+
+jobs:
+  rp-deploy:
+    uses: ./.github/workflows/deploy-workloads.yml
+    with:
+      workload_dir: "reverse-proxy"
+      router_core_host_url: "https://router.lan"
+      proxmox_endpoint: "https://minis01.lan:8006"
+    secrets:
+      TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
+      TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+      TERRAFORM_HOMELAB_TOKEN: ${{ secrets.TERRAFORM_HOMELAB_TOKEN }}
+      HOMELAB_SSH_KEY_B64: ${{ secrets.HOMELAB_SSH_KEY_B64 }}
+      HOMELAB_SSH_PUBLIC_KEY: ${{ secrets.HOMELAB_SSH_PUBLIC_KEY }}
+      ROUTER_CORE_PASSWORD: ${{ secrets.ROUTER_CORE_PASSWORD }}
+      ROUTER_CORE_USERNAME: ${{ secrets.ROUTER_CORE_USERNAME }}
+      PROXMOX_USERNAME: ${{ secrets.PROXMOX_USERNAME }}
+      PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
+

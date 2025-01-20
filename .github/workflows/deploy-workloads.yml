@@ -1,0 +1,86 @@
+name: Homelab Workload
+
+on:
+  workflow_call:
+    inputs:
+      workload_dir:
+        description: 'Name of the workload directory to deploy'
+        required: true
+        type: string
+
+      router_core_host_url:
+        description: 'Url for router core api endpoint'
+        required: true
+        type: string
+
+      proxmox_endpoint:
+        description: 'Proxmox api endpoint'
+        required: true
+        type: string
+
+    secrets:
+      TAILSCALE_CLIENT_ID:
+        required: true
+      TAILSCALE_CLIENT_SECRET:
+        required: true
+      TERRAFORM_HOMELAB_TOKEN:
+        required: true
+      HOMELAB_SSH_KEY_B64:
+        required: true
+      HOMELAB_SSH_PUBLIC_KEY:
+        required: true
+      ROUTER_CORE_PASSWORD:
+        required: true
+      ROUTER_CORE_USERNAME:
+        required: true
+      PROXMOX_USERNAME:
+        required: true
+      PROXMOX_PASSWORD:
+        required: true
+
+jobs:
+  homelab-workload:
+    name: Deployment
+    runs-on: ubuntu-latest
+    env:
+      HOMELAB_SSH_KEY_PATH: "/home/runner/.ssh/id_ed25519_homelab"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_CLIENT_SECRET }}
+          tags: tag:ci
+          args: --exit-node=100.83.21.9 --accept-risk=all
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.10.3'
+          cli_config_credentials_token: ${{ secrets.TERRAFORM_HOMELAB_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Install Ansible Tools
+        run: ./scripts/ci/install_ansible_tools.sh
+
+      - name: Setup SSH Key
+        run: ./scripts/ci/ssh_key_setup.sh
+        env:
+          HOMELAB_SSH_KEY_B64: ${{ secrets.HOMELAB_SSH_KEY_B64 }}
+
+      - name: Deploy Workload
+        run: |
+          ./workloads/${{ inputs.workload_dir }}/deploy.sh
+        env:
+          HOMELAB_SSH_PUBLIC_KEY: ${{ secrets.HOMELAB_SSH_PUBLIC_KEY }}
+          ROUTER_CORE_PASSWORD: ${{ secrets.ROUTER_CORE_PASSWORD }}
+          ROUTER_CORE_USERNAME: ${{ secrets.ROUTER_CORE_USERNAME }}
+          ROUTER_CORE_HOST_URL: ${{ inputs.router_core_host_url }}
+          PROXMOX_USERNAME: ${{ secrets.PROXMOX_USERNAME }}
+          PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
+          PROXMOX_ENDPOINT: ${{ inputs.proxmox_endpoint }}
+

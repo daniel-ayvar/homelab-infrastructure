@@ -7,7 +7,7 @@ if [ ! -f "$env_file" ]; then
     echo "Retrieving secrets and exporting into '$env_file'."
     cat <<EOF > $env_file
 # Homelab SSH Key
-export HOMELAB_SSH_KEY_PATH="~/.ssh/id_ed25519_homelab"
+export HOMELAB_SSH_KEY_PATH="./id_ed25519_homelab"
 export HOMELAB_SSH_KEY_B64="$(infisical secrets get HOMELAB_SSH_KEY_B64 --env=prod --plain)"
 export HOMELAB_SSH_PUBLIC_KEY="$(infisical secrets get HOMELAB_SSH_PUBLIC_KEY --env=prod --plain)"
 
@@ -22,9 +22,10 @@ export BACKBLAZE_KEY_ID="$(infisical secrets get BACKBLAZE_KEY_ID --env=prod --p
 export BACKBLAZE_APPLICATION_KEY="$(infisical secrets get BACKBLAZE_APPLICATION_KEY --env=prod --plain)"
 
 # PROXMOX Workload Variables
+export PROXMOX_SSH_USERNAME="$(infisical secrets get PROXMOX_SSH_USERNAME --env=prod --plain)"
+export PROXMOX_USERNAME="$(infisical secrets get PROXMOX_SSH_USERNAME --env=prod --plain)"
 export PROXMOX_ENDPOINT="$(infisical secrets get PROXMOX_ENDPOINT --env=prod --plain)"
 export PROXMOX_PASSWORD="$(infisical secrets get PROXMOX_PASSWORD --env=prod --plain)"
-export PROXMOX_SSH_USERNAME="$(infisical secrets get PROXMOX_SSH_USERNAME --env=prod --plain)"
 EOF
 else
     echo "Secrets already retrieved in '$env_file'. To refresh, delete file and rerun."

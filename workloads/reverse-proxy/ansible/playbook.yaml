@@ -1,0 +1,118 @@
+- name: Prepare Proxmox SSL Certificates and NGINX Configuration
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ansible_user: root
+    proxmox_ips:
+      - 10.70.30.12
+      - 10.70.30.14
+      - 10.70.30.16
+  tasks:
+    - name: Add target host SSH key to known_hosts
+      ansible.builtin.known_hosts:
+        path: "~/.ssh/known_hosts"
+        name: "{{ item }}"
+        key: "{{ lookup('pipe', 'ssh-keyscan -H ' ~ item ~ ' 2>/dev/null') }}"
+      with_items: "{{ proxmox_ips }}"
+
+    - name: Try downloading Proxmox SSL certificate from available nodes
+      ansible.builtin.fetch:
+        src: /etc/pve/local/pve-ssl.pem
+        dest: /tmp/pve-ssl.pem
+        flat: true
+      delegate_to: "{{ item }}"
+      ignore_errors: true
+      with_items: "{{ proxmox_ips }}"
+      register: cert_fetch_results
+
+    - name: Verify if SSL certificate file was downloaded
+      ansible.builtin.stat:
+        path: /tmp/pve-ssl.pem
+      register: cert_stat
+      when: cert_fetch_results.results | selectattr('failed', 'equalto', false) | list | length > 0
+
+    - name: Fail if SSL certificate could not be fetched from any node
+      ansible.builtin.fail:
+        msg: "Failed to fetch Proxmox SSL certificate from all nodes."
+      when: not cert_stat.stat.exists
+
+    - name: Try downloading Proxmox SSL key from available nodes
+      ansible.builtin.fetch:
+        src: /etc/pve/local/pve-ssl.key
+        dest: /tmp/pve-ssl.key
+        flat: true
+      delegate_to: "{{ item }}"
+      ignore_errors: true
+      with_items: "{{ proxmox_ips }}"
+      register: key_fetch_results
+
+    - name: Verify if SSL key file was downloaded
+      ansible.builtin.stat:
+        path: /tmp/pve-ssl.key
+      register: key_stat
+      when: key_fetch_results.results | selectattr('failed', 'equalto', false) | list | length > 0
+
+    - name: Fail if SSL key could not be fetched from any node
+      ansible.builtin.fail:
+        msg: "Failed to fetch Proxmox SSL key from all nodes."
+      when: not key_stat.stat.exists
+
+
+- name: Configure and Deploy NGINX on Webserver Nodes
+  hosts: webservers
+  become: true
+  vars:
+    secrets_path: /secrets
+    ssl_cert_path: /secrets/pve-ssl.pem
+    ssl_key_path: /secrets/pve-ssl.key
+  tasks:
+    - name: Ensure directory for Proxmox SSL files exists
+      ansible.builtin.file:
+        path: "{{ secrets_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy Proxmox SSL certificate to webserver
+      ansible.builtin.copy:
+        src: /tmp/pve-ssl.pem
+        dest: "{{ ssl_cert_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Copy Proxmox SSL key to webserver
+      ansible.builtin.copy:
+        src: /tmp/pve-ssl.key
+        dest: "{{ ssl_key_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Update apt cache and install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Deploy custom nginx configuration for Proxmox load balancing
+      ansible.builtin.template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart nginx
+
+    - name: Ensure NGINX service is started and enabled
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

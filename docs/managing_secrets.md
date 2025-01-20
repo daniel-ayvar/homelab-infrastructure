@@ -28,4 +28,5 @@ The following secrets can be found in use.
 ### PROXMOX Workload Variables
 * PROXMOX_ENDPOINT - Main proxmox url endpoint of the proxmox service. Used for setup of reverse proxy. Otherwise `homelab.lan` should be used.
 * PROXMOX_SSH_USERNAME - The admin username of the proxmox cluster.
+* PROXMOX_USERNAME - The admin username of the proxmox cluster.
 * PROXMOX_PASSWORD - The admin password of the proxmox cluster.
