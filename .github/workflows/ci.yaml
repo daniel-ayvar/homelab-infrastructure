@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'deploy/**'
+      - 'scripts/ci/**'
       - '.github/workflows/ci.yaml'
   workflow_dispatch:
 

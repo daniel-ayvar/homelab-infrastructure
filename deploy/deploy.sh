@@ -52,9 +52,10 @@ done
 
 sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
 
-python3 ./scripts/util/refresh-node-dhcp-lease.py ./dhcp_leases_by_node.json
+python3 ./scripts/ci/refresh-node-dhcp-lease.py ./dhcp_leases_by_node.json
 
 # Ansible
 ansible-lint deploy/ansible/homelab.yaml
+export ANSIBLE_HOST_KEY_CHECKING=False
 ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file $HOMELAB_SSH_KEY_PATH \
   -e "proxmox_password=$PROXMOX_PASSWORD backblaze_application_key=$BACKBLAZE_APPLICATION_KEY backblaze_key_id=$BACKBLAZE_KEY_ID"
