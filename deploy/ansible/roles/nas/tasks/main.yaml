@@ -43,8 +43,8 @@
 - name: Deploy /etc/exports for NFS
   ansible.builtin.copy:
     content: |
-      /mnt/data {{ ansible_host }}/24(rw,sync,no_subtree_check,no_root_squash)
-      /mnt/plex {{ ansible_host }}/24(rw,sync,no_subtree_check,no_root_squash)
+      /mnt/data {{ ip_address }}/24(rw,sync,no_subtree_check,no_root_squash)
+      /mnt/plex {{ ip_address }}/24(rw,sync,no_subtree_check,no_root_squash)
     dest: /etc/exports
     owner: root
     group: root

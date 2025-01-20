@@ -9,7 +9,7 @@
 
 - name: Gather IP addresses of all_proxmox_nodes
   ansible.builtin.set_fact:
-    all_proxmox_nodes_ips: "{{ all_proxmox_nodes | map('extract', hostvars, ['ansible_host']) | list }}"
+    all_proxmox_nodes_ips: "{{ all_proxmox_nodes | map('extract', hostvars, ['ip_address']) | list }}"
   when: is_master
 
 - name: Determine if Ceph is already installed
@@ -25,22 +25,22 @@
   when: not ceph_installed
 
 - name: Initialize Ceph configuration using pveceph init (master only)
-  ansible.builtin.command: pveceph init --network {{ ansible_host }}/24
+  ansible.builtin.command: pveceph init --network {{ node_network }}/24
   args:
     creates: /etc/pve/ceph.conf
   when: is_master
   register: ceph_init_result
 
 - name: Create Ceph Monitor on node using dedicated IP
-  ansible.builtin.command: pveceph createmon --mon-address {{ ansible_host }}
+  ansible.builtin.command: pveceph createmon --mon-address {{ ip_address }}
   args:
-    creates: /var/lib/ceph/mon/ceph-{{ inventory_hostname }}
+    creates: /var/lib/ceph/mon/ceph-{{ hostname }}
   register: createmon_result
 
 - name: Create Ceph Manager on node
   ansible.builtin.command: pveceph createmgr
   args:
-    creates: /var/lib/ceph/mgr/ceph-{{ inventory_hostname }}
+    creates: /var/lib/ceph/mgr/ceph-{{ hostname }}
   register: createmgr_result
 
 - name: Check if OSD directories exist
@@ -108,7 +108,7 @@
 - name: Create Ceph Metadata Server on node
   ansible.builtin.command: pveceph mds create
   args:
-    creates: /var/lib/ceph/mds/ceph-{{ inventory_hostname }}
+    creates: /var/lib/ceph/mds/ceph-{{ hostname }}
   register: createmds_result
 
 - name: Create Ceph filesystem

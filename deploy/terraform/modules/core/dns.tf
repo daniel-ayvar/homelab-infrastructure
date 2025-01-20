@@ -43,3 +43,27 @@ resource "routeros_ip_dns_adlist" "blocklistproject_facebook" {
   ssl_verify = false
 }
 
+resource "routeros_ip_dns_record" "dns_record_minis00" {
+  name     = "minis00.lan"
+  address  = "10.70.30.10"
+  type     = "A"
+}
+
+resource "routeros_ip_dns_record" "dns_record_minis01" {
+  name     = "minis01.lan"
+  address  = "10.70.30.12"
+  type     = "A"
+}
+
+resource "routeros_ip_dns_record" "dns_record_minis02" {
+  name     = "minis02.lan"
+  address  = "10.70.30.14"
+  type     = "A"
+}
+
+resource "routeros_ip_dns_record" "dns_record_minis03" {
+  name     = "minis03.lan"
+  address  = "10.70.30.16"
+  type     = "A"
+}
+

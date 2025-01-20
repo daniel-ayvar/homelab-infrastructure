@@ -138,6 +138,7 @@ add address=10.70.40.0/30 gateway=10.70.40.1 dns-server=10.70.40.1,9.9.9.9 comme
 /ip dns
 set allow-remote-requests=yes servers=1.1.1.3,1.0.0.3 cache-max-ttl=1h
 
+/ip dns static add name=router.lan address=10.70.30.1
 # ================================
 # FIREWALL AND NAT CONFIGURATION
 # ================================

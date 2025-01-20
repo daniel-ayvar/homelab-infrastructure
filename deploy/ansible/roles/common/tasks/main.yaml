@@ -1,10 +1,4 @@
 ---
-- name: Add remote host to known_hosts
-  ansible.builtin.known_hosts:
-    path: /root/.ssh/known_hosts
-    name: "{{ ansible_host }}"  # Use SSH endpoint
-    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + ansible_host) }}"
-
 - name: Packages | ensure apt list dir exists
   ansible.builtin.file:
     path: /var/lib/apt/lists/
