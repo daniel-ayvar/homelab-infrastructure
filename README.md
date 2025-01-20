@@ -29,8 +29,35 @@ Before you begin you must of met the following requirements.
 * Terraform (version 1.10 or higher)
 * Python3
 * Ansible (version 2.16 or higher)
+* Infisical CLI
+
+For both Terraform and Infisical, ensure you have been have access to the appropriate workspaces.
 
 ## Commands
+Deploying all infrastructure.
+```shell
+# Deploys all homelab infrastructure
+make deploy
+```
+
+Retrieving secrets - necessary for running remaining examples
+More info on how secrets are managed [here](./docs/managing_secrets.md).
+```shell
+# Retreives secrets from infisical into .env
+./scripts/util/retrieve_secrets.sh
+
+# Source from env file to be able to run scripts
+source ./.env
+```
+
+Creating python virtual env. (optional)
+```shell
+# Create virtual environment
+python -m venv .venv
+
+# Activate virutal evironment
+source ./.venv/bin/activate
+```
 
 Deploying terraform infrastructure.
 ```shell
