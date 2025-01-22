@@ -1,18 +1,26 @@
-
 name: Reverse Proxy Workload
 
 on:
+  workflow_run:
+    workflows: ["Homelab Infrastructure"]
+    types:
+      - completed
   push:
     paths:
-      - 'workloads/reverse-proxy/*'
+      - 'workloads/reverse-proxy/**'
+
+concurrency:
+  group: homelab-reverse-proxy-group
+  cancel-in-progress: false
 
 jobs:
   rp-deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
     uses: ./.github/workflows/deploy-workloads.yml
     with:
       workload_dir: "reverse-proxy"
       router_core_host_url: "https://router.lan"
-      proxmox_endpoint: "https://minis01.lan:8006"
+      proxmox_endpoint: "https://10.70.30.12:8006"
     secrets:
       TAILSCALE_CLIENT_ID: ${{ secrets.TAILSCALE_CLIENT_ID }}
       TAILSCALE_CLIENT_SECRET: ${{ secrets.TAILSCALE_CLIENT_SECRET }}

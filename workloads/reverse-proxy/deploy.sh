@@ -5,23 +5,36 @@ set -ex
 : "${HOMELAB_SSH_KEY_PATH:?Environment variable HOMELAB_SSH_KEY_PATH is required}"
 : "${HOMELAB_SSH_PUBLIC_KEY:?Environment variable HOMELAB_SSH_PUBLIC_KEY is required}"
 
+: "${ROUTER_CORE_HOST_URL:?Environment variable ROUTER_CORE_HOST_URL is required}"
 : "${ROUTER_CORE_USERNAME:?Environment variable ROUTER_CORE_USERNAME is required}"
 : "${ROUTER_CORE_PASSWORD:?Environment variable ROUTER_CORE_PASSWORD is required}"
-: "${ROUTER_CORE_HOST_URL:?Environment variable ROUTER_CORE_HOST_URL is required}"
 
 : "${PROXMOX_ENDPOINT:?Environment variable PROXMOX_ENDPOINT is required}"
 : "${PROXMOX_USERNAME:?Environment variable PROXMOX_USERNAME is required}"
 : "${PROXMOX_PASSWORD:?Environment variable PROXMOX_PASSWORD is required}"
 
-export TF_VAR_homelab_ssh_public_key="$HOMELAB_SSH_PUBLIC_KEY"
-
-export TF_VAR_router_core_username="$ROUTER_CORE_USERNAME"
-export TF_VAR_router_core_password="$ROUTER_CORE_PASSWORD"
-export TF_VAR_router_core_host_url="$ROUTER_CORE_HOST_URL"
-
-export TF_VAR_proxmox_endpoint="$PROXMOX_ENDPOINT"
-export TF_VAR_proxmox_username="$PROXMOX_USERNAME"
-export TF_VAR_proxmox_password="$PROXMOX_PASSWORD"
+# Terraform
+cat <<EOF > ./workloads/reverse-proxy/terraform/terraform.auto.tfvars.json
+{
+  "homelab_ssh_public_key": "$HOMELAB_SSH_PUBLIC_KEY",
+  "router_core": {
+    "auth": {
+      "hosturl": "$ROUTER_CORE_HOST_URL",
+      "username": "$ROUTER_CORE_USERNAME",
+      "password": "$ROUTER_CORE_PASSWORD",
+      "insecure": true
+    }
+  },
+  "proxmox": {
+    "auth": {
+      "endpoint": "$PROXMOX_ENDPOINT",
+      "username": "$PROXMOX_USERNAME",
+      "password": "$PROXMOX_PASSWORD",
+      "insecure": true
+    }
+  }
+}
+EOF
 
 # Run Terraform apply
 terraform -chdir=workloads/reverse-proxy/terraform init

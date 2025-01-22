@@ -1,36 +1,31 @@
-variable "proxmox_endpoint" {
-  description = "The endpoint URL of the Proxmox nodes"
-  type        = string
+variable "router_core" {
+  description = "Router core settings with nested auth"
+  type = object({
+    auth = object({
+      hosturl  = string
+      username = string
+      password = string
+      insecure = bool
+    })
+  })
+  sensitive = true
 }
 
-variable "proxmox_username" {
-  description = "The admin username for the Proxmox nodes"
-  type        = string
-}
-
-variable "proxmox_password" {
-  description = "The admin password for the Proxmox nodes"
-  type        = string
-  sensitive   = true
-}
-
-variable "router_core_host_url" {
-  description = "The public url of the core router host"
-  type        = string
-}
-
-variable "router_core_username" {
-  description = "The username of the core router host"
-  type        = string
-}
-
-variable "router_core_password" {
-  description = "The password of the core router host"
-  type        = string
-  sensitive   = true
+variable "proxmox" {
+  description = "Proxmox settings with nested auth"
+  type = object({
+    auth = object({
+      endpoint = string
+      username = string
+      password = string
+      insecure = bool
+    })
+  })
+  sensitive = true
 }
 
 variable "homelab_ssh_public_key" {
   description = "SSH public key used to access to homelab admin."
   type        = string
 }
+

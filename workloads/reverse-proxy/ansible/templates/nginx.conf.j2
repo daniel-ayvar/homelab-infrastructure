@@ -11,9 +11,9 @@ http {
     # Upstream block for Proxmox load balancing
     upstream proxmox {
         ip_hash;
-        server 10.70.30.12:8006;
-        server 10.70.30.14:8006;
-        server 10.70.30.16:8006;
+        server minis01:8006;
+        server minis02:8006;
+        server minis03:8006;
     }
 
     server {
