@@ -1,11 +1,3 @@
-provider "routeros" {
-  alias    = "routeros_core"
-  hosturl  = var.router_core_host_url
-  username = var.router_core_username
-  password = var.router_core_password
-  insecure = true
-}
-
 module "router_core_RB5009" {
   source = "./modules/core"
 
@@ -13,11 +5,53 @@ module "router_core_RB5009" {
     routeros = routeros.routeros_core
   }
 
-  vlan30_dhcp_leases = var.vlan30_dhcp_leases
+  proxmox_dhcp_leases = var.proxmox_dhcp_leases
 }
 
-output "current_vlan30_leases" {
-  description = "currently_assigned_leases"
-  value       = module.router_core_RB5009.vlan30_dhcp_leases
+resource "infisical_secret" "routeros_terraform_auth_username" {
+  name         = "ROUTER_CORE_USERNAME"
+  value        = module.router_core_RB5009.terraform_auth.username
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
+resource "infisical_secret" "routeros_terraform_auth_password" {
+  name         = "ROUTER_CORE_PASSWORD"
+  value        = module.router_core_RB5009.terraform_auth.password
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
+output "current_proxmox_dhcp_leases" {
+  description = "current_proxmox_dhcp_leases"
+  value       = module.router_core_RB5009.current_proxmox_dhcp_leases
   sensitive   = true
+}
+
+module "proxmox" {
+  depends_on = [module.router_core_RB5009]
+
+  source = "./modules/proxmox"
+
+  providers = {
+    proxmox = proxmox
+  }
+}
+
+resource "infisical_secret" "proxmox_terraform_auth_username" {
+  name         = "PROXMOX_USERNAME"
+  value        = module.proxmox.terraform_auth.username
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
+resource "infisical_secret" "proxmox_terraform_auth_password" {
+  name         = "PROXMOX_PASSWORD"
+  value        = module.proxmox.terraform_auth.password
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
 }

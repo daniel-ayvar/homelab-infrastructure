@@ -10,6 +10,10 @@ on:
       - '.github/workflows/ci.yaml'
   workflow_dispatch:
 
+concurrency:
+  group: homelab-reverse-proxy-group
+  cancel-in-progress: false  # Prevents cancellation of in-progress workflows
+
 jobs:
   homelab-infra:
     name: Deployment
@@ -47,11 +51,18 @@ jobs:
       - name: Run Deployment Script
         run: ./deploy/deploy.sh
         env:
-          ROUTER_CORE_PASSWORD: ${{ secrets.ROUTER_CORE_PASSWORD }}
-          ROUTER_CORE_USERNAME: ${{ secrets.ROUTER_CORE_USERNAME }}
-          ROUTER_CORE_HOST_URL: "https://10.70.30.1"
+          ROUTER_CORE_HOST_URL: "https://router.lan"
+          ROUTER_CORE_ADMIN_USERNAME: ${{ secrets.ROUTER_CORE_ADMIN_USERNAME }}
+          ROUTER_CORE_ADMIN_PASSWORD: ${{ secrets.ROUTER_CORE_ADMIN_PASSWORD }}
           TERRAFORM_VARS_NETWORK_B64: ${{ secrets.TERRAFORM_VARS_NETWORK_B64 }}
-          PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
+          PROXMOX_ENDPOINT: "https://10.70.30.12:8006"
+          PROXMOX_ADMIN_USERNAME: ${{ secrets.PROXMOX_ADMIN_USERNAME }}
+          PROXMOX_ADMIN_PASSWORD: ${{ secrets.PROXMOX_ADMIN_PASSWORD }}
+          INFISICAL_HOST: "https://app.infisical.com"
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_WORKSPACE_ID: ${{ secrets.INFISICAL_WORKSPACE_ID }}
+          INFISICAL_ENV_SLUG: "prod"
           BACKBLAZE_APPLICATION_KEY: ${{ secrets.BACKBLAZE_APPLICATION_KEY }}
           BACKBLAZE_KEY_ID: ${{ secrets.BACKBLAZE_KEY_ID }}
 

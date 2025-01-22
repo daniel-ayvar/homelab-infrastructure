@@ -6,32 +6,68 @@ set -ex
 # Check for required environment variables
 : "${HOMELAB_SSH_KEY_PATH:?Environment variable HOMELAB_SSH_KEY_PATH is required}"
 
-: "${ROUTER_CORE_USERNAME:?Environment variable ROUTER_CORE_USERNAME is required}"
-: "${ROUTER_CORE_PASSWORD:?Environment variable ROUTER_CORE_PASSWORD is required}"
 : "${ROUTER_CORE_HOST_URL:?Environment variable ROUTER_CORE_HOST_URL is required}"
+: "${ROUTER_CORE_ADMIN_USERNAME:?Environment variable ROUTER_CORE_ADMIN_USERNAME is required}"
+: "${ROUTER_CORE_ADMIN_PASSWORD:?Environment variable ROUTER_CORE_ADMIN_PASSWORD is required}"
+
 : "${TERRAFORM_VARS_NETWORK_B64:?Environment variable TERRAFORM_VARS_NETWORK_B64 is required}"
 
-: "${PROXMOX_PASSWORD:?Environment variable PROXMOX_PASSWORD is required}"
+: "${PROXMOX_ENDPOINT:?Environment variable PROXMOX_ENDPOINT is required}"
+: "${PROXMOX_ADMIN_USERNAME:?Environment variable PROXMOX_ADMIN_USERNAME is required}"
+: "${PROXMOX_ADMIN_PASSWORD:?Environment variable PROXMOX_ADMIN_PASSWORD is required}"
+
+: "${INFISICAL_HOST:?Environment variable INFISICAL_HOST is required}"
+: "${INFISICAL_CLIENT_ID:?Environment variable INFISICAL_CLIENT_ID is required}"
+: "${INFISICAL_CLIENT_SECRET:?Environment variable INFISICAL_CLIENT_SECRET is required}"
+: "${INFISICAL_ENV_SLUG:?Environment variable INFISICAL_ENV_SLUG is required}"
+: "${INFISICAL_WORKSPACE_ID:?Environment variable INFISICAL_WORKSPACE_ID is required}"
+
 : "${BACKBLAZE_APPLICATION_KEY:?Environment variable BACKBLAZE_APPLICATION_KEY is required}"
 : "${BACKBLAZE_KEY_ID:?Environment variable BACKBLAZE_KEY_ID is required}"
 
-export TF_VAR_router_core_username="$ROUTER_CORE_USERNAME"
-export TF_VAR_router_core_password="$ROUTER_CORE_PASSWORD"
-export TF_VAR_router_core_host_url="$ROUTER_CORE_HOST_URL"
-
 # Terraform
-echo "$TERRAFORM_VARS_NETWORK_B64" | base64 --decode > ./deploy/terraform/network_terraform.tfvars.json
+cat <<EOF > ./deploy/terraform/terraform.auto.tfvars.json
+{
+  "router_core": {
+    "auth": {
+      "hosturl": "$ROUTER_CORE_HOST_URL",
+      "admin_username": "$ROUTER_CORE_ADMIN_USERNAME",
+      "admin_password": "$ROUTER_CORE_ADMIN_PASSWORD",
+      "insecure": true
+    }
+  },
+  "proxmox": {
+    "auth": {
+      "endpoint": "$PROXMOX_ENDPOINT",
+      "admin_username": "$PROXMOX_ADMIN_USERNAME",
+      "admin_password": "$PROXMOX_ADMIN_PASSWORD",
+      "insecure": true
+    }
+  },
+  "infisical": {
+    "auth": {
+      "host": "$INFISICAL_HOST",
+      "client_id": "$INFISICAL_CLIENT_ID",
+      "client_secret": "$INFISICAL_CLIENT_SECRET"
+    },
+    "env_slug": "$INFISICAL_ENV_SLUG",
+    "workspace_id": "$INFISICAL_WORKSPACE_ID"
+  }
+}
+EOF
+
+echo "$TERRAFORM_VARS_NETWORK_B64" | base64 --decode > ./deploy/terraform/proxmox_dhcp_leases.auto.tfvars.json
 
 terraform -chdir=./deploy/terraform/ init
 terraform -chdir=./deploy/terraform/ validate
-terraform -chdir=./deploy/terraform/ plan -var-file=network_terraform.tfvars.json -out=tfplan.tmp
-terraform -chdir=./deploy/terraform/ apply -var-file=network_terraform.tfvars.json -auto-approve tfplan.tmp
-terraform -chdir=./deploy/terraform/ output -json current_vlan30_leases > ./dhcp_leases_by_node.json
+terraform -chdir=./deploy/terraform/ plan -out=tfplan.tmp
+terraform -chdir=./deploy/terraform/ apply -auto-approve tfplan.tmp
+terraform -chdir=./deploy/terraform/ output -json current_proxmox_dhcp_leases > ./current_proxmox_dhcp_leases.json
 
 echo "Terraform output generated successfully."
 
 # Refresh DHCP Leases
-JSON_FILE="./dhcp_leases_by_node.json"
+JSON_FILE="./current_proxmox_dhcp_leases.json"
 
 if ! command -v jq &> /dev/null; then
     echo "jq not found, installing..."
@@ -52,10 +88,10 @@ done
 
 sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
 
-python3 ./scripts/ci/refresh-node-dhcp-lease.py ./dhcp_leases_by_node.json
+python3 ./scripts/ci/refresh-node-dhcp-lease.py ./current_proxmox_dhcp_leases.json
 
 # Ansible
 ansible-lint deploy/ansible/homelab.yaml
 export ANSIBLE_HOST_KEY_CHECKING=False
 ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file $HOMELAB_SSH_KEY_PATH \
-  -e "proxmox_password=$PROXMOX_PASSWORD backblaze_application_key=$BACKBLAZE_APPLICATION_KEY backblaze_key_id=$BACKBLAZE_KEY_ID"
+  -e "proxmox_password=$PROXMOX_ADMIN_PASSWORD backblaze_application_key=$BACKBLAZE_APPLICATION_KEY backblaze_key_id=$BACKBLAZE_KEY_ID"
