@@ -17,6 +17,9 @@ resource "proxmox_virtual_environment_role" "ci_cd_operations" {
     "Datastore.AllocateSpace",
     "Datastore.AllocateTemplate",
     "Datastore.Audit",
+    "Mapping.Audit",
+    "Mapping.Modify",
+    "Mapping.Use",
     "SDN.Use",
     "Sys.Audit",
     "Sys.Modify", # Refactor to lessen perimissions. As of 01-22-25, this is the only way.
