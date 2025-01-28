@@ -49,11 +49,19 @@ resource "proxmox_virtual_environment_user" "operations_automation" {
   enabled = true
 }
 
+resource "proxmox_virtual_environment_user_token" "operations_automation" {
+  comment         = "Managed by Terraform"
+  expiration_date = "2033-01-01T22:00:00Z"
+  token_name      = "terraform"
+  user_id         = proxmox_virtual_environment_user.operations_automation.user_id
+}
+
 output "terraform_auth" {
   description = "Router os auth for terraform deployments"
   value = {
-    username = proxmox_virtual_environment_user.operations_automation.user_id
-    password = proxmox_virtual_environment_user.operations_automation.password
+    username  = proxmox_virtual_environment_user.operations_automation.user_id
+    password  = proxmox_virtual_environment_user.operations_automation.password
+    api_token = proxmox_virtual_environment_user_token.operations_automation.value
   }
   sensitive = true
 }

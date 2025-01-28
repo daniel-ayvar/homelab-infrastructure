@@ -31,6 +31,7 @@ export PROXMOX_ADMIN_PASSWORD="$(infisical secrets get PROXMOX_ADMIN_PASSWORD --
 # Proxmox TF Variables
 export PROXMOX_USERNAME="$(infisical secrets get PROXMOX_USERNAME --env=prod --plain)"
 export PROXMOX_PASSWORD="$(infisical secrets get PROXMOX_PASSWORD --env=prod --plain)"
+export PROXMOX_API_TOKEN="$(infisical secrets get PROXMOX_API_TOKEN --env=prod --plain)"
 
 # Infisical Variables
 export INFISICAL_HOST="https://app.infisical.com"

@@ -69,12 +69,16 @@ The following secrets are currently in use across various components of the infr
   *Usage*: Used in conjunction with the admin username for authenticating API requests.
 
 - **`PROXMOX_USERNAME`**:
-  *Description*: Another admin username for the Proxmox cluster (if applicable).
+  *Description*: A username for the Proxmox cluster used in workload ci/cd.
   *Usage*: Facilitates multi-user access or alternate admin operations.
 
 - **`PROXMOX_PASSWORD`**:
-  *Description*: Another admin password for the Proxmox cluster (if applicable).
+  *Description*: A password for the Proxmox cluster used in workload ci/cd.
   *Usage*: Used with `PROXMOX_USERNAME` for alternate authentication.
+
+- **`PROXMOX_API_TOKEN`**:
+  *Description*: A api token for the Proxmox cluster used in workload ci/cd.
+  *Usage*: Used with `PROXMOX_API_TOKEN` for alternate authentication.
 
 ### Infisical Variables
 

@@ -55,3 +55,11 @@ resource "infisical_secret" "proxmox_terraform_auth_password" {
   workspace_id = var.infisical.workspace_id
   folder_path  = "/"
 }
+
+resource "infisical_secret" "proxmox_terraform_auth_api_token" {
+  name         = "PROXMOX_API_TOKEN"
+  value        = module.proxmox.terraform_auth.api_token
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
