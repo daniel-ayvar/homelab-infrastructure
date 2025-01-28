@@ -9,6 +9,7 @@
     is_master: "{{ inventory_hostname in groups['proxmox_master'] }}"
     master_ip: "{{ hostvars[groups['proxmox_master'][0]].ansible_host }}"
     proxmox_password: "{{ lookup('env', 'PROXMOX_PASSWORD') }}"
+    i915_desired_commit: "5d81c8a02c3b59c770e5efb5815bf5c861effdfb"
 
 - name: Configure Ceph on Master Node
   hosts: proxmox_master

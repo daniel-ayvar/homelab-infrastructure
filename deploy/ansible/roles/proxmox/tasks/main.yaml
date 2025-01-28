@@ -239,3 +239,236 @@
   when: is_master and ("vm_backup_pool" not in current_backup_jobs.stdout)
   register: create_backup_job
   changed_when: create_backup_job.rc == 0
+
+##########################################################################
+# vGPU driver install
+##########################################################################
+# Update the apt cache
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 600
+  notify: Reboot the host
+
+# Ensure kernel version is 6.1 or newer
+- name: Ensure kernel version is 6.1 or newer
+  ansible.builtin.assert:
+    that:
+      - ansible_kernel is version('6.1', '>=')
+    fail_msg: "Kernel version is too old. Please update to version 6.1 or newer."
+
+# Install pve-headers for current kernel
+- name: Install pve-headers for current kernel
+  ansible.builtin.apt:
+    name: "pve-headers-{{ ansible_kernel }}"
+    state: present
+  notify: Reboot the host
+
+# Install git, mokutil, sysfsutils, and dkms
+- name: Install git, mokutil, sysfsutils, and dkms
+  ansible.builtin.apt:
+    name:
+      - git
+      - mokutil
+      - sysfsutils
+      - dkms
+    state: present
+  notify: Reboot the host
+
+- name: Check if local i915-sriov-dkms repo exists
+  ansible.builtin.stat:
+    path: "/root/i915-sriov-dkms/.git"
+  register: i915_repo_stat
+  tags: check_commit
+
+- name: Get the current commit of local i915-sriov-dkms repo
+  ansible.builtin.command: git rev-parse HEAD
+  args:
+    chdir: "/root/i915-sriov-dkms"
+  register: i915_current_commit
+  changed_when: false
+  when: i915_repo_stat.stat.exists
+  tags: check_commit
+
+- name: Determine if the local repo matches the desired commit
+  ansible.builtin.set_fact:
+    correct_commit: "{{ i915_current_commit.stdout == i915_desired_commit }}"
+  when: i915_repo_stat.stat.exists
+  tags: check_commit
+
+- name: Remove existing i915-sriov-dkms modules and directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ lookup('fileglob', '/var/lib/dkms/i915-sriov-dkms*', wantlist=True) +
+           lookup('fileglob', '/usr/src/i915-sriov-dkms*', wantlist=True) +
+           ['/root/i915-sriov-dkms'] }}"
+  when: not correct_commit | default(false)
+  tags: remove_dkms
+
+- name: Clone the DKMS repository at specific commit
+  ansible.builtin.git:
+    repo: "https://github.com/strongtz/i915-sriov-dkms.git"
+    dest: "/root/i915-sriov-dkms"
+    version: "{{ i915_desired_commit }}"
+    force: false
+    update: true
+  when: not correct_commit | default(false)
+  notify: Reboot the host
+  tags: clone_dkms
+
+- name: Backup dkms.conf
+  ansible.builtin.copy:
+    src: "/root/i915-sriov-dkms/dkms.conf"
+    dest: "/root/i915-sriov-dkms/dkms.conf.bak"
+    mode: '0655'
+    remote_src: true
+    backup: false
+  when: not correct_commit | default(false)
+  notify: Reboot the host
+  tags: backup_dkms_conf
+
+# Add DKMS module
+- name: Add DKMS module
+  ansible.builtin.command: dkms add .
+  args:
+    chdir: "/root/i915-sriov-dkms"
+  register: dkms_add_output
+  changed_when: "'Added' in dkms_add_output.stdout"
+  failed_when: dkms_add_output.rc != 0 and "already contains" not in dkms_add_output.stderr.lower()
+  notify: Reboot the host
+  tags: add_dkms
+
+# Remove parallel make jobs from dkms.conf
+- name: Remove parallel make jobs from dkms.conf
+  ansible.builtin.replace:
+    path: "/root/i915-sriov-dkms/dkms.conf"
+    regexp: ' -j\$\((nproc)\)'
+    replace: ''
+  notify: Reboot the host
+
+# Extract DKMS package version
+- name: Extract DKMS package version
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep 'PACKAGE_VERSION=' /root/i915-sriov-dkms/dkms.conf | awk -F '=' '{print $2}' | tr -d '"'
+  args:
+    executable: /bin/bash
+  register: dkms_version
+  changed_when: false
+
+
+# Display dkms.conf for verification
+- name: Display dkms.conf
+  ansible.builtin.command: cat /root/i915-sriov-dkms/dkms.conf
+  register: dkms_conf_content
+  changed_when: false
+
+# Reinstall dkms package
+- name: Reinstall dkms package
+  ansible.builtin.apt:
+    name: dkms
+    state: present
+  notify: Reboot the host
+
+# Add DKMS module
+- name: Add DKMS module
+  ansible.builtin.command: dkms add .
+  args:
+    chdir: "/root/i915-sriov-dkms"
+  register: dkms_add_output
+  changed_when: "'Added' in dkms_add_output.stdout"
+  failed_when: dkms_add_output.rc != 0 and 'already contains' not in dkms_add_output.stderr
+
+# Verify DKMS status after adding
+- name: Verify DKMS status after adding
+  ansible.builtin.command: dkms status
+  register: dkms_status_after_add
+  changed_when: false
+
+- name: Show DKMS status after adding
+  ansible.builtin.debug:
+    msg: "{{ dkms_status_after_add.stdout }}"
+
+# Install i915-sriov-dkms module
+- name: Install i915-sriov-dkms module
+  ansible.builtin.command: dkms install -m i915-sriov-dkms -v "{{ dkms_version.stdout }}" -k "{{ ansible_kernel }}" --force -j 1
+  args:
+    chdir: "/root/i915-sriov-dkms"
+  register: dkms_install_output
+  changed_when: "'install completed successfully' in dkms_install_output.stdout"
+  notify: Reboot the host
+
+# Verify DKMS status after installation
+- name: Verify DKMS status after installation
+  ansible.builtin.command: dkms status
+  register: dkms_status_after_install
+  changed_when: false
+
+- name: Show DKMS status after installation
+  ansible.builtin.debug:
+    msg: "{{ dkms_status_after_install.stdout }}"
+
+# Backup existing GRUB configuration
+- name: Backup existing GRUB configuration
+  ansible.builtin.copy:
+    src: "/etc/default/grub"
+    dest: "/etc/default/grub.bak"
+    mode: '0655'
+    remote_src: true
+    backup: true
+  notify: Reboot the host
+
+# Update GRUB_CMDLINE_LINUX_DEFAULT in GRUB configuration
+- name: Update GRUB_CMDLINE_LINUX_DEFAULT in GRUB configuration
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt i915.enable_guc=3 i915.max_vfs=7"'
+    backup: true
+  notify: Reboot the host
+
+# Update GRUB
+- name: Update GRUB
+  ansible.builtin.command: update-grub
+  register: grub_update_output
+  changed_when: grub_update_output.rc == 0 and "'Updating GRUB configuration'" in grub_update_output.stdout
+  notify: Reboot the host
+
+# Update initramfs for all kernels
+- name: Update initramfs for all kernels
+  ansible.builtin.command: update-initramfs -u -k all
+  register: initramfs_update_output
+  changed_when: "'updating initramfs' in initramfs_update_output.stdout.lower()"
+  notify: Reboot the host
+
+# Create or update sysfs.conf with vGPU settings
+- name: Create or update sysfs.conf with vGPU settings
+  ansible.builtin.lineinfile:
+    path: "/etc/sysfs.conf"
+    regexp: '^devices/pci0000:00/0000:00:02.0/sriov_numvfs\s*='
+    line: "devices/pci0000:00/0000:00:02.0/sriov_numvfs = 7"
+    mode: "0655"
+    create: true
+  notify: Reboot the host
+
+# Display sysfs.conf for verification
+- name: Display sysfs.conf
+  ansible.builtin.command: cat /etc/sysfs.conf
+  register: sysfs_conf_content
+  changed_when: false
+
+- name: Show sysfs.conf content
+  ansible.builtin.debug:
+    msg: "{{ sysfs_conf_content.stdout }}"
+
+# Verify vGPU setup after reboot
+- name: Verify vGPU setup after reboot
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci | grep VGA
+    dmesg | grep i915
+  args:
+    executable: /bin/bash
+  register: vgpu_verification
+  changed_when: false
