@@ -27,3 +27,8 @@ deploy/workloads/reverse-proxy: venv retrieve-secrets setup-ssh
 	. ./.env && \
 	./workloads/reverse-proxy/deploy.sh
 
+deploy/workloads/talos-k8s: venv retrieve-secrets setup-ssh
+	@echo "Starting workload deployment for talos-k8s..." && \
+	. ./.venv/bin/activate && \
+	. ./.env && \
+	./workloads/talos-k8s/deploy.sh

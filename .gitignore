@@ -12,4 +12,4 @@
 .infisical.json
 id_*
 
-
+workloads/talos-k8s/terraform/output/*
