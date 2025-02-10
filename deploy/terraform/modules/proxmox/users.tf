@@ -20,6 +20,8 @@ resource "proxmox_virtual_environment_role" "ci_cd_operations" {
     "Mapping.Audit",
     "Mapping.Modify",
     "Mapping.Use",
+    "Pool.Audit",
+    "SDN.Audit",
     "SDN.Use",
     "Sys.Audit",
     "Sys.Modify", # Refactor to lessen perimissions. As of 01-22-25, this is the only way.
@@ -57,6 +59,7 @@ resource "proxmox_virtual_environment_user_token" "operations_automation" {
   expiration_date = "2033-01-01T22:00:00Z"
   token_name      = "terraform"
   user_id         = proxmox_virtual_environment_user.operations_automation.user_id
+  privileges_separation = false
 }
 
 output "terraform_auth" {

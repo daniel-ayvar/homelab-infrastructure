@@ -41,6 +41,7 @@ module "proxmox" {
 }
 
 resource "infisical_secret" "proxmox_terraform_auth_username" {
+  depends_on = [module.proxmox]
   name         = "PROXMOX_USERNAME"
   value        = module.proxmox.terraform_auth.username
   env_slug     = var.infisical.env_slug
@@ -49,6 +50,7 @@ resource "infisical_secret" "proxmox_terraform_auth_username" {
 }
 
 resource "infisical_secret" "proxmox_terraform_auth_password" {
+  depends_on = [module.proxmox]
   name         = "PROXMOX_PASSWORD"
   value        = module.proxmox.terraform_auth.password
   env_slug     = var.infisical.env_slug
@@ -57,6 +59,7 @@ resource "infisical_secret" "proxmox_terraform_auth_password" {
 }
 
 resource "infisical_secret" "proxmox_terraform_auth_api_token" {
+  depends_on = [module.proxmox]
   name         = "PROXMOX_API_TOKEN"
   value        = module.proxmox.terraform_auth.api_token
   env_slug     = var.infisical.env_slug
