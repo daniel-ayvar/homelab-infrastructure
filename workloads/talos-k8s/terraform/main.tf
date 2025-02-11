@@ -106,16 +106,12 @@ module "talos" {
 
   providers = {
     proxmox = proxmox
+    helm    = helm.talos
   }
 
   image = {
     extension_names = ["siderolabs/i915-ucode", "siderolabs/intel-ucode", "siderolabs/qemu-guest-agent"]
-    version         = "v1.7.5"
-  }
-
-  cilium = {
-    install = file("${path.module}/talos/inline-manifests/cilium-install.yaml")
-    values  = file("${path.module}/kubernetes/cilium/values.yaml")
+    version         = "v1.9.3"
   }
 
   cluster = local.cluster
@@ -124,22 +120,33 @@ module "talos" {
   ceph_cluster_ips = var.ceph.cluster_ips
 }
 
+locals {
+    kubernetes = {
+      auth = {
+          host                   = module.talos.kube_config.kubernetes_client_configuration.host
+          client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
+          client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
+          cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
+        }
+    }
+}
+
 module "k8s_ceph_rbd" {
   source   = "./bootstrap/ceph-rbd/"
 
-  providers = {
-    kubernetes = kubernetes
-    helm = helm
-  }
-
   proxmox = var.proxmox
   ceph    = var.ceph
+  kubernetes = local.kubernetes
+}
+
+module "k8s_cilium" {
+  source   = "./bootstrap/cilium/"
+
+  kubernetes = local.kubernetes
 }
 
 module "k8s_apps" {
-  source   = "./bootstrap/apps"
+  source   = "./bootstrap/apps/"
 
-  providers = {
-    kubernetes = kubernetes
-  }
+  kubernetes = local.kubernetes
 }

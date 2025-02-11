@@ -19,3 +19,4 @@
         content: "{{ ceph_user_key.stdout }}"
         dest: "{{ ceph_key_output_file_path }}"
         mode: '0644'
+      delegate_to: localhost

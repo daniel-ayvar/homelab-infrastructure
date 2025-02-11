@@ -2,10 +2,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: minecraft-service
+  annotations:
+    service.cilium.io/global: "true"
 spec:
   selector:
     app: minecraft-server
   ports:
     - protocol: TCP
       port: 25565
-  type: ClusterIP
+      targetPort: 25565
+  type: LoadBalancer
+

@@ -9,6 +9,17 @@ data "talos_client_configuration" "this" {
   endpoints            = [for k, v in var.nodes : v.ip if v.machine_type == "controlplane"]
 }
 
+
+data "helm_template" "cilium" {
+  name       = "cilium"
+  namespace  = "kube-system"
+  repository = "https://helm.cilium.io"
+  chart      = "cilium"
+  version      = "1.16.1"
+  kube_version = "1.32.1"
+  values     = [templatefile("${path.module}/inline-manifests/values.yaml", {})]
+}
+
 data "talos_machine_configuration" "this" {
   for_each         = var.nodes
   cluster_name     = var.cluster.name
@@ -21,8 +32,7 @@ data "talos_machine_configuration" "this" {
       hostname       = each.key
       node_name      = each.value.host_node
       cluster_name   = var.cluster.proxmox_cluster
-      cilium_values  = var.cilium.values
-      cilium_install = var.cilium.install
+      cilium_install =join("\n---\n", values(data.helm_template.cilium.manifests))
     })
     ] : [
     templatefile("${path.module}/machine-config/worker.yaml.tftpl", {
@@ -32,6 +42,7 @@ data "talos_machine_configuration" "this" {
     })
   ]
 }
+
 
 resource "talos_machine_configuration_apply" "this" {
   for_each                    = var.nodes

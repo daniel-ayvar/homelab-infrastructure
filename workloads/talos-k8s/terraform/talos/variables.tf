@@ -42,16 +42,6 @@ variable "image" {
   })
 }
 
-
-variable "cilium" {
-  description = "Cilium configuration"
-  type = object({
-    values  = string
-    install = string
-  })
-}
-
-
 variable "ceph_cluster_ips" {
   description = "Ceph cluster ip address to use in firewall rules"
   type = list(string)
