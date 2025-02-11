@@ -1,0 +1,21 @@
+- name: Prepare Proxmox SSL Certificates and NGINX Configuration
+  hosts: proxmox_master
+  gather_facts: false
+  vars:
+    ansible_user: root
+    ceph_username: "{{ lookup('env', 'CEPH_USERNAME') }}"
+    ceph_key_output_file_path: "{{ lookup('env', 'CEPH_KEY_ANSIBLE_OUTPUT_FILE_PATH') }}"
+
+  tasks:
+    - name: Retrieve Ceph user key
+      ansible.builtin.command: >
+        ceph auth get-key client.{{ ceph_username }}
+      register: ceph_user_key
+      changed_when: false
+      failed_when: false
+
+    - name: Copy the Ceph user key to a local file
+      ansible.builtin.copy:
+        content: "{{ ceph_user_key.stdout }}"
+        dest: "{{ ceph_key_output_file_path }}"
+        mode: '0644'

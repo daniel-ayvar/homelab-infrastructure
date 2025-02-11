@@ -81,3 +81,42 @@ resource "proxmox_virtual_environment_vm" "this" {
     }
   }
 }
+
+resource "proxmox_virtual_environment_firewall_rules" "allow_ceph" {
+  for_each = var.nodes
+
+  node_name = each.value.host_node
+  vm_id     = each.value.vm_id
+
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow incoming Ceph communication"
+    source  = join(",", var.ceph_cluster_ips)
+    proto   = "tcp"
+    dport   = "6789,3300,6800:7300"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow outgoing Ceph communication"
+    source  = join(",", var.ceph_cluster_ips)
+    proto   = "tcp"
+    dport   = "6789,3300,6800:7300"
+  }
+
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow ICMP for Ceph health checks"
+    proto   = "icmp"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow ICMP for Ceph health checks"
+    proto   = "icmp"
+  }
+}

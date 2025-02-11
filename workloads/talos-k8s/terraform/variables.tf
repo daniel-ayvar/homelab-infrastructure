@@ -25,6 +25,18 @@ variable "proxmox" {
   sensitive = true
 }
 
+variable "ceph" {
+  description = "Ceph settings with nested auth"
+  type = object({
+    auth = object({
+      username  = string
+      key       = string
+    })
+    cluster_ips = list(string)
+  })
+  sensitive = true
+}
+
 variable "homelab_ssh_public_key" {
   description = "SSH public key used to access to homelab admin."
   type        = string

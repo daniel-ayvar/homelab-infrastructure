@@ -121,32 +121,25 @@ module "talos" {
   cluster = local.cluster
 
   nodes = local.nodes
+  ceph_cluster_ips = var.ceph.cluster_ips
 }
 
-module "proxmox_csi_plugin" {
-  depends_on = [module.talos]
-  source     = "./bootstrap/proxmox-csi-plugin"
+module "k8s_ceph_rbd" {
+  source   = "./bootstrap/ceph-rbd/"
 
   providers = {
-    proxmox    = proxmox
     kubernetes = kubernetes
+    helm = helm
   }
 
   proxmox = var.proxmox
-  proxmox_cluster_name = "pve-cluster"
+  ceph    = var.ceph
 }
 
-module "persistent-volume" {
-  source   = "./bootstrap/persistent-volume"
+module "k8s_apps" {
+  source   = "./bootstrap/apps"
 
   providers = {
     kubernetes = kubernetes
-  }
-
-  volume = {
-    name          = "ceph-storage"
-    capacity      = "300G"
-    volume_handle = "default/cephfs_pool/ceph_storage"
-    storage       = "ceph_storage"
   }
 }

@@ -51,3 +51,8 @@ variable "cilium" {
   })
 }
 
+
+variable "ceph_cluster_ips" {
+  description = "Ceph cluster ip address to use in firewall rules"
+  type = list(string)
+}

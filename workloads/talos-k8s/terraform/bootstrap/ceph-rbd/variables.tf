@@ -12,7 +12,13 @@ variable "proxmox" {
   sensitive = true
 }
 
-variable "proxmox_cluster_name" {
-  description = "Proxmox cluster name"
-  type = string
+variable "ceph" {
+  description = "Proxmox settings with nested auth"
+  type = object({
+    auth = object({
+      username  = string
+      key       = string
+    })
+  })
+  sensitive = true
 }

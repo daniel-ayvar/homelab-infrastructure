@@ -25,6 +25,11 @@ terraform {
       version = ">=2.35.1"
     }
 
+    helm = {
+      source = "hashicorp/helm"
+      version = ">=2.17.0"
+    }
+
     restapi = {
       source  = "Mastercard/restapi"
       version = ">=1.20.0"
@@ -60,13 +65,11 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
 }
 
-provider "restapi" {
-  uri                  = var.proxmox.auth.endpoint
-  insecure             = var.router_core.auth.insecure
-  write_returns_object = true
-
-  headers = {
-    "Content-Type"  = "application/json"
-    "Authorization" = "PVEAPIToken=${var.proxmox.auth.api_token}"
+provider "helm" {
+  kubernetes {
+    host                   = module.talos.kube_config.kubernetes_client_configuration.host
+    client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
+    client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
+    cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
   }
 }

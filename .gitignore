@@ -10,6 +10,9 @@
 .DS_Store
 
 .infisical.json
+current_proxmox_dhcp_leases.json
 id_*
+*.keyring
+*.key
 
 workloads/talos-k8s/terraform/output/*
