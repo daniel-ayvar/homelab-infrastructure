@@ -155,9 +155,3 @@ module "k8s_flux" {
   kubernetes = local.kubernetes
   infisical = var.infisical
 }
-
-module "k8s_apps" {
-  source   = "./bootstrap/apps/"
-
-  kubernetes = local.kubernetes
-}

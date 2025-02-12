@@ -81,6 +81,3 @@ terraform -chdir=workloads/talos-k8s/terraform init
 terraform -chdir=workloads/talos-k8s/terraform validate
 terraform -chdir=workloads/talos-k8s/terraform plan
 terraform -chdir=workloads/talos-k8s/terraform apply -auto-approve
-
-# Kubernetes Apps
-kubectl apply -k workloads/talos-k8s/kubernetes/apps/minecraft
