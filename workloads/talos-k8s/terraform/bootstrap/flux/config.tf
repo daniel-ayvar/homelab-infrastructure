@@ -28,7 +28,7 @@ resource "kubernetes_secret" "flux_github_ssh" {
   data = {
     "identity"     = var.gh_ssh_credentials.identity
     "identity.pub" = var.gh_ssh_credentials.identity_pub
-    "known_hosts"  = var.gh_ssh_credentials.identity_pub
+    "known_hosts"  = var.gh_ssh_credentials.known_hosts
   }
 
   type = "Opaque"
