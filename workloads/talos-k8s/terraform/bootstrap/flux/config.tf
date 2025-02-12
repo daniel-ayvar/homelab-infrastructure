@@ -19,13 +19,6 @@ resource "helm_release" "flux" {
   values     = [templatefile("${path.module}/files/flux2.values.yaml.tpl", {})]
 }
 
-data "infisical_secrets" "infra_secrets" {
-  env_slug     = var.infisical.env_slug
-  workspace_id = var.infisical.workspace_id
-  folder_path  = "/"
-}
-
-
 resource "kubernetes_secret" "flux_github_ssh" {
   metadata {
     name      = "flux-github-ssh"
@@ -33,9 +26,9 @@ resource "kubernetes_secret" "flux_github_ssh" {
   }
 
   data = {
-    "identity"     = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_IDENTITY_KEY_B64"].value)
-    "identity.pub" = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_PUBLIC_IDENTITY_KEY_B64"].value)
-    "known_hosts"  = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_KNOWN_HOSTS_B64"].value)
+    "identity"     = var.gh_ssh_credentials.identity
+    "identity.pub" = var.gh_ssh_credentials.identity_pub
+    "known_hosts"  = var.gh_ssh_credentials.identity_pub
   }
 
   type = "Opaque"

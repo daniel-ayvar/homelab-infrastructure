@@ -1,5 +1,5 @@
 variable "kubernetes" {
-  description = "Kubernetes settings with nested auth"
+  description = "Proxmox settings with nested auth"
   type = object({
     auth = object({
       host                   = string
@@ -11,13 +11,7 @@ variable "kubernetes" {
   sensitive = true
 }
 
-variable "gh_ssh_credentials" {
-  description = "GitHub SSH credentials"
-
-  type = object({
-    identity     = string
-    identity_pub = string
-    known_hosts  = string
-  })
+variable "infisical_workspace_id" {
+    description = "Infisical workspace id"
+    type = string
 }
-
