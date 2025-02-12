@@ -74,10 +74,9 @@ resource "kubectl_manifest" "infisical" {
 
   yaml_body = <<YAML
 apiVersion: external-secrets.io/v1beta1
-kind: SecretStore
+kind: ClusterSecretStore
 metadata:
   name: infisical
-  namespace: ${kubernetes_namespace.external_secrets.metadata[0].name}
 spec:
   provider:
     infisical:
