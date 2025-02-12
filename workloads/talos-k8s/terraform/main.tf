@@ -145,6 +145,17 @@ module "k8s_cilium" {
   kubernetes = local.kubernetes
 }
 
+module "k8s_flux" {
+  source   = "./bootstrap/flux/"
+
+  providers = {
+    infisical = infisical
+  }
+
+  kubernetes = local.kubernetes
+  infisical = var.infisical
+}
+
 module "k8s_apps" {
   source   = "./bootstrap/apps/"
 

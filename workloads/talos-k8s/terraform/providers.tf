@@ -34,6 +34,11 @@ terraform {
       source  = "Mastercard/restapi"
       version = ">=1.20.0"
     }
+
+    infisical = {
+      source = "Infisical/infisical"
+      version = ">=0.12.11"
+    }
   }
 
   required_version = ">= 1.10.3"
@@ -70,3 +75,8 @@ provider "helm" {
   alias = "talos"
 }
 
+provider "infisical" {
+  host          = var.infisical.auth.host
+  client_id     = var.infisical.auth.client_id
+  client_secret = var.infisical.auth.client_secret
+}

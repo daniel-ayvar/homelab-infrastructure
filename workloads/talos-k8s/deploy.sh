@@ -9,6 +9,12 @@ set -ex
 : "${ROUTER_CORE_USERNAME:?Environment variable ROUTER_CORE_USERNAME is required}"
 : "${ROUTER_CORE_PASSWORD:?Environment variable ROUTER_CORE_PASSWORD is required}"
 
+: "${INFISICAL_HOST:?Environment variable INFISICAL_HOST is required}"
+: "${INFISICAL_CLIENT_ID:?Environment variable INFISICAL_CLIENT_ID is required}"
+: "${INFISICAL_CLIENT_SECRET:?Environment variable INFISICAL_CLIENT_SECRET is required}"
+: "${INFISICAL_ENV_SLUG:?Environment variable INFISICAL_ENV_SLUG is required}"
+: "${INFISICAL_WORKSPACE_ID:?Environment variable INFISICAL_WORKSPACE_ID is required}"
+
 : "${PROXMOX_ENDPOINT:?Environment variable PROXMOX_ENDPOINT is required}"
 : "${PROXMOX_USERNAME:?Environment variable PROXMOX_USERNAME is required}"
 : "${PROXMOX_PASSWORD:?Environment variable PROXMOX_PASSWORD is required}"
@@ -49,6 +55,15 @@ cat <<EOF > ./workloads/talos-k8s/terraform/terraform.auto.tfvars.json
       "api_token": "$PROXMOX_API_TOKEN",
       "insecure": true
     }
+  },
+  "infisical": {
+    "auth": {
+      "host": "$INFISICAL_HOST",
+      "client_id": "$INFISICAL_CLIENT_ID",
+      "client_secret": "$INFISICAL_CLIENT_SECRET"
+    },
+    "env_slug": "$INFISICAL_ENV_SLUG",
+    "workspace_id": "$INFISICAL_WORKSPACE_ID"
   },
   "ceph": {
      "auth": {
