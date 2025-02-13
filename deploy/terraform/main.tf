@@ -66,3 +66,20 @@ resource "infisical_secret" "proxmox_terraform_auth_api_token" {
   workspace_id = var.infisical.workspace_id
   folder_path  = "/"
 }
+
+data "infisical_secrets" "infra_secrets" {
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
+module "linode" {
+  source = "./modules/linode"
+
+  providers = {
+    infisical = infisical
+  }
+
+  linode_token = data.infisical_secrets.infra_secrets.secrets["LINODE_TOKEN"].value
+  public_ssh_key = data.infisical_secrets.infra_secrets.secrets["HOMELAB_SSH_PUBLIC_KEY"].value
+}
