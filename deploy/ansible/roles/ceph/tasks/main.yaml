@@ -159,3 +159,29 @@
   register: cephfs_confirm
   changed_when: false
   when: is_master
+
+- name: Check if CephFS subvolume group "csi" exists
+  ansible.builtin.command: ceph fs subvolumegroup create cephfs csi
+  register: cephfs_subvol_group
+  changed_when: false
+  become: true
+
+- name: Create CephFS subvolume group "csi"
+  ansible.builtin.command: ceph fs subvolumegroup ls cephfs
+  when: "'csi' not in cephfs_subvol_group.stdout"
+  register: create_subvol_group
+  become: true
+  changed_when: create_subvol_group.rc == 0
+
+- name: Check if CephFS subvolume "csi" exists
+  ansible.builtin.command: ceph fs subvolume ls cephfs
+  register: cephfs_subvol
+  changed_when: false
+  become: true
+
+- name: Create CephFS subvolume "csi"
+  ansible.builtin.command: ceph fs subvolume create cephfs csi
+  when: "'csi' not in cephfs_subvol.stdout"
+  register: create_subvol
+  become: true
+  changed_when: create_subvol.rc == 0
