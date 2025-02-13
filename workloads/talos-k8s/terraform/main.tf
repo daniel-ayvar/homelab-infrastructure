@@ -139,6 +139,14 @@ module "k8s_ceph_rbd" {
   kubernetes = local.kubernetes
 }
 
+module "k8s_cephfs" {
+  source   = "./bootstrap/cephfs/"
+
+  proxmox = var.proxmox
+  ceph    = var.ceph
+  kubernetes = local.kubernetes
+}
+
 module "k8s_cilium" {
   source   = "./bootstrap/cilium/"
 
