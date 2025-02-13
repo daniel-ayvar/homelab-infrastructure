@@ -1,0 +1,53 @@
+- name: Update apt cache and install WireGuard
+  ansible.builtin.apt:
+    name: wireguard
+    state: present
+    update_cache: true
+
+- name: Install iptables
+  ansible.builtin.apt:
+    name: iptables
+    state: present
+
+- name: Create WireGuard configuration directory
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    mode: "0700"
+
+- name: Save the provided WireGuard private key
+  ansible.builtin.copy:
+    dest: "{{ private_key_path }}"
+    content: "{{ wg_private_key }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Save the provided WireGuard public key
+  ansible.builtin.copy:
+    dest: "{{ public_key_path }}"
+    content: "{{ wg_public_key }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Deploy WireGuard configuration file
+  ansible.builtin.template:
+    src: ../files/wg0.conf.j2
+    dest: "{{ wg_config_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Enable IP forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: true
+
+- name: Start and enable the WireGuard interface
+  ansible.builtin.systemd:
+    name: wg-quick@{{ wg_interface }}
+    enabled: true
+    state: started

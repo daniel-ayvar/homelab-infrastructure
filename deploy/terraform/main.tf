@@ -73,6 +73,7 @@ data "infisical_secrets" "infra_secrets" {
   folder_path  = "/"
 }
 
+# Used for tunnel
 module "linode" {
   source = "./modules/linode"
 
@@ -82,4 +83,14 @@ module "linode" {
 
   linode_token = data.infisical_secrets.infra_secrets.secrets["LINODE_TOKEN"].value
   public_ssh_key = data.infisical_secrets.infra_secrets.secrets["HOMELAB_SSH_PUBLIC_KEY"].value
+}
+
+output "wg_tunnel_credentials" {
+  depends_on = [module.linode]
+  description = "wg tunnel public and private key"
+  value       = {
+    public_key = data.infisical_secrets.infra_secrets.secrets["WG_PUBLIC_KEY"].value
+    private_key = data.infisical_secrets.infra_secrets.secrets["WG_PRIVATE_KEY"].value
+  }
+  sensitive   = true
 }

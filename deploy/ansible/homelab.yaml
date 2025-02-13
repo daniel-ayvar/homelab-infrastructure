@@ -4,3 +4,6 @@
 
 - name: Import Proxmox setup
   import_playbook: proxmox.yaml
+
+- name: Setup Tunnel Reverse Proxy
+  import_playbook: tunnel.yaml

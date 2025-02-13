@@ -90,8 +90,14 @@ sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
 
 python3 ./scripts/ci/refresh-node-dhcp-lease.py ./current_proxmox_dhcp_leases.json
 
+# Put Wireguard credentials into env variable
+terraform -chdir=./deploy/terraform/ output -json wg_tunnel_credentials > ./wg_tunnel_credentials.json
+export WG_PUBLIC_KEY=$(jq -r '.public_key' < wg_tunnel_credentials.json)
+export WG_PRIVATE_KEY=$(jq -r '.private_key' < wg_tunnel_credentials.json)
+
 # Ansible
 ansible-lint deploy/ansible/homelab.yaml
 export ANSIBLE_HOST_KEY_CHECKING=False
 ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file $HOMELAB_SSH_KEY_PATH \
-  -e "proxmox_password=$PROXMOX_ADMIN_PASSWORD backblaze_application_key=$BACKBLAZE_APPLICATION_KEY backblaze_key_id=$BACKBLAZE_KEY_ID"
+  -e "proxmox_password=$PROXMOX_ADMIN_PASSWORD backblaze_application_key=$BACKBLAZE_APPLICATION_KEY backblaze_key_id=$BACKBLAZE_KEY_ID wg_public_key=$WG_PUBLIC_KEY wg_private_key=$WG_PRIVATE_KEY" \
+  --start-at-task="tunnel : Update apt cache and install WireGuard"

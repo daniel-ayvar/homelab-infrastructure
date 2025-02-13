@@ -1,0 +1,15 @@
+---
+- name: Configure homelab tunnel
+  hosts: homelab_tunnel_node
+  roles:
+    - tunnel
+  vars:
+    wg_interface: wg0
+    wg_listen_port: 51820
+    wg_address: "10.8.0.1/24"
+    wg_private_key: "{{ lookup('env', 'WG_PRIVATE_KEY') }}"
+    wg_public_key: "{{ lookup('env', 'WG_PUBLIC_KEY') }}"
+    private_key_path: /etc/wireguard/server_private.key
+    public_key_path: /etc/wireguard/server_public.key
+    wg_config_file: /etc/wireguard/wg0.conf
+    network_interface: eth0
