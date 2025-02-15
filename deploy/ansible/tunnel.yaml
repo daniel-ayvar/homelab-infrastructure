@@ -1,15 +1,30 @@
 ---
+- name: Dynamically add homelab tunnel host
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - add_host:
+        name: homelab_tunnel
+        ansible_host: "{{ lookup('env', 'VM_TUNNEL_IP_ADDRESS') }}"
+        groups: homelab_tunnel_node
+        ansible_user: root
+
 - name: Configure homelab tunnel
   hosts: homelab_tunnel_node
   roles:
     - tunnel
   vars:
     wg_interface: wg0
-    wg_listen_port: 51820
-    wg_address: "10.8.0.1/24"
-    wg_private_key: "{{ lookup('env', 'WG_PRIVATE_KEY') }}"
-    wg_public_key: "{{ lookup('env', 'WG_PUBLIC_KEY') }}"
-    private_key_path: /etc/wireguard/server_private.key
-    public_key_path: /etc/wireguard/server_public.key
-    wg_config_file: /etc/wireguard/wg0.conf
+    wg_listen_port: 2333
+    wg_server_address: "10.8.0.1"
+    wg_client_address: "10.8.0.2"
+    reverse_proxy_ip: "10.70.30.20"
     network_interface: eth0
+    wg_server_private_key: "{{ lookup('env', 'WG_SERVER_PRIVATE_KEY') }}"
+    wg_server_public_key: "{{ lookup('env', 'WG_SERVER_PUBLIC_KEY') }}"
+    wg_client_private_key: "{{ lookup('env', 'WG_CLIENT_PRIVATE_KEY') }}"
+    wg_client_public_key: "{{ lookup('env', 'WG_CLIENT_PUBLIC_KEY') }}"
+    vm_tunnel_ip_address: "{{ lookup('env', 'VM_TUNNEL_IP_ADDRESS') }}"
+    wg_config_file: /etc/wireguard/wg0.conf
+    add_tunnel_script_file: /etc/wireguard/add_tunnel_rules.sh
+    remove_tunnel_script_file: /etc/wireguard/remove_tunnel_rules.sh

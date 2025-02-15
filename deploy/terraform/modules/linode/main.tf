@@ -12,7 +12,7 @@ resource "linode_instance" "homelab_tunnel" {
   authorized_keys = [var.public_ssh_key]
   root_pass       = random_password.password.result
 
-  private_ip = true
+  private_ip = false
 }
 
 resource "linode_firewall" "homelab_tunnel" {
@@ -33,17 +33,26 @@ resource "linode_firewall" "homelab_tunnel" {
     label    = "allow-wg"
     action   = "ACCEPT"
     protocol = "UDP"
-    ports    = "51820"
+    ports    = "2333"
     ipv4     = ["0.0.0.0/0"]
     ipv6     = ["::/0"]
   }
 
-  # Allow minecraft
+  # Open inbound Minecraft (TCP)
   inbound {
-    label    = "allow-ssh"
+    label    = "allow-minecraft"
     action   = "ACCEPT"
     protocol = "TCP"
-    ports    = "22"
+    ports    = "25565"
+    ipv4     = ["0.0.0.0/0"]
+    ipv6     = ["::/0"]
+  }
+
+  # Open inbound ICMP (for ping, etc.)
+  inbound {
+    label    = "allow-icmp"
+    action   = "ACCEPT"
+    protocol = "ICMP"
     ipv4     = ["0.0.0.0/0"]
     ipv6     = ["::/0"]
   }
@@ -54,3 +63,7 @@ resource "linode_firewall" "homelab_tunnel" {
   linodes = [linode_instance.homelab_tunnel.id]
 }
 
+output "public_ip_address" {
+  description = "ip address for linode tunnel vm"
+  value = linode_instance.homelab_tunnel.ip_address
+}

@@ -1,0 +1,10 @@
+[Interface]
+Address = {{ wg_client_address | trim }}/32
+ListenPort = {{ wg_listen_port }}
+PrivateKey = {{ wg_client_private_key | trim }} 
+ 
+[Peer]
+PublicKey = {{ wg_server_public_key | trim }}
+AllowedIPs = {{ wg_vpn_subnet | trim }}
+Endpoint = {{ wg_server_endpoint | trim }} 
+PersistentKeepalive = {{ wg_persistent_keepalive }} 

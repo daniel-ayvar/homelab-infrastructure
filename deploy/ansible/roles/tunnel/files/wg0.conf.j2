@@ -1,9 +1,10 @@
 [Interface]
-PrivateKey = {{ wg_private_key | trim }}
-Address = {{ wg_address }}
+Address = {{ wg_server_address | trim }}/24
 ListenPort = {{ wg_listen_port }}
-SaveConfig = true
-
-PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ network_interface }} -j MASQUERADE
-PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ network_interface }} -j MASQUERADE
-
+PostUp = {{ add_tunnel_script_file | trim }}
+PostDown = {{ remove_tunnel_script_file | trim }}
+PrivateKey = {{ wg_server_private_key | trim }}
+ 
+[Peer]
+AllowedIPs = {{ wg_client_address | trim }}/32
+PublicKey = {{ wg_client_public_key | trim }}

@@ -13,12 +13,9 @@ proxmox_master
 proxmox_nodes
 nas_nodes
 
-[homelab_tunnel_node]
-homelab_tunnel ansible_host=172.236.123.151 hostname=homelab_tunnel ip_address=172.236.123.151
-
 [all:vars]
 ansible_connection=ssh
-ansible_port=22 
+ansible_port=22
 ansible_user=root
 ansible_python_interpreter=/usr/bin/python3
 node_network=10.70.30.0/24

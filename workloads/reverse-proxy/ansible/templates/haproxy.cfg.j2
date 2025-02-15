@@ -1,0 +1,24 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    maxconn 4096
+    user haproxy
+    group haproxy
+    daemon
+
+defaults
+    log     global
+    mode    tcp
+    option  tcplog
+    timeout connect 5s
+    timeout client  50s
+    timeout server  50s
+
+frontend minecraft_frontend
+    bind *:25565
+    default_backend minecraft_backend
+
+backend minecraft_backend
+    mode tcp
+    option tcp-check
+    server mc1 {{ minecraft_server_endpoint }}:25565 check inter 2000 rise 2 fall 3

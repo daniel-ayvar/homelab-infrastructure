@@ -85,12 +85,23 @@ module "linode" {
   public_ssh_key = data.infisical_secrets.infra_secrets.secrets["HOMELAB_SSH_PUBLIC_KEY"].value
 }
 
+resource "infisical_secret" "linode_tunnel_vm_public_ip_address" {
+  name         = "TUNNEL_VM_PUBLIC_IP_ADDRESS"
+  value        = module.linode.public_ip_address
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
 output "wg_tunnel_credentials" {
   depends_on = [module.linode]
   description = "wg tunnel public and private key"
   value       = {
-    public_key = data.infisical_secrets.infra_secrets.secrets["WG_PUBLIC_KEY"].value
-    private_key = data.infisical_secrets.infra_secrets.secrets["WG_PRIVATE_KEY"].value
+    server_public_key = data.infisical_secrets.infra_secrets.secrets["WG_SERVER_PUBLIC_KEY"].value
+    server_private_key = data.infisical_secrets.infra_secrets.secrets["WG_SERVER_PRIVATE_KEY"].value
+    client_public_key = data.infisical_secrets.infra_secrets.secrets["WG_CLIENT_PUBLIC_KEY"].value
+    client_private_key = data.infisical_secrets.infra_secrets.secrets["WG_CLIENT_PRIVATE_KEY"].value
+    tunnel_vm_public_ip_address = module.linode.public_ip_address
   }
   sensitive   = true
 }

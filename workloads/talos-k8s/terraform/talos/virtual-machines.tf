@@ -119,4 +119,22 @@ resource "proxmox_virtual_environment_firewall_rules" "allow_ceph" {
     comment = "Allow ICMP for Ceph health checks"
     proto   = "icmp"
   }
+
+  # Minecraft rules
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow incoming Minecraft traffic"
+    proto   = "tcp"
+    dport   = "25565"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow outgoing Minecraft traffic"
+    proto   = "tcp"
+    dport   = "25565"
+  }
 }
+

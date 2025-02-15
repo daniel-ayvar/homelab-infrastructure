@@ -1,53 +1,65 @@
-- name: Update apt cache and install WireGuard
+- name: Install WireGuard, wireguard-tools, and resolvconf
   ansible.builtin.apt:
-    name: wireguard
+    name:
+      - wireguard
+      - wireguard-tools
+      - iptables
+      - resolvconf
     state: present
-    update_cache: true
-
-- name: Install iptables
-  ansible.builtin.apt:
-    name: iptables
-    state: present
+  become: true
 
 - name: Create WireGuard configuration directory
   ansible.builtin.file:
     path: /etc/wireguard
     state: directory
     mode: "0700"
+  become: true
 
-- name: Save the provided WireGuard private key
-  ansible.builtin.copy:
-    dest: "{{ private_key_path }}"
-    content: "{{ wg_private_key }}"
+- name: Deploy WireGuard add tunnel rules
+  ansible.builtin.template:
+    src: ../files/add_tunnel_rules.sh
+    dest: "{{ add_tunnel_script_file }}"
     owner: root
     group: root
-    mode: "0600"
+    mode: "0700"
+  become: true
 
-- name: Save the provided WireGuard public key
-  ansible.builtin.copy:
-    dest: "{{ public_key_path }}"
-    content: "{{ wg_public_key }}"
+- name: Deploy WireGuard remove tunnel rules
+  ansible.builtin.template:
+    src: ../files/add_tunnel_rules.sh
+    dest: "{{ remove_tunnel_script_file }}"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0700"
+  become: true
 
-- name: Deploy WireGuard configuration file
+- name: Deploy WireGuard configuration file (wg0.conf)
   ansible.builtin.template:
     src: ../files/wg0.conf.j2
     dest: "{{ wg_config_file }}"
     owner: root
     group: root
     mode: "0600"
-
-- name: Enable IP forwarding
-  ansible.posix.sysctl:
-    name: net.ipv4.ip_forward
-    value: "1"
-    state: present
-    reload: true
+  become: true
+  notify: Restart WireGuard
 
 - name: Start and enable the WireGuard interface
   ansible.builtin.systemd:
     name: wg-quick@{{ wg_interface }}
     enabled: true
     state: started
+  become: true
+
+- name: Enable IPv4 forwarding
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: yes
+
+- name: Set rp_filter to 2 for all interfaces
+  ansible.builtin.sysctl:
+    name: net.ipv4.conf.all.rp_filter
+    value: "2"
+    state: present
+    reload: yes

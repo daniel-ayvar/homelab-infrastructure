@@ -12,6 +12,10 @@ terraform {
       source  = "ivoronin/macaddress"
       version = "0.3.2"
     }
+    infisical = {
+      source  = "Infisical/infisical"
+      version = ">=0.12.11"
+    }
     random = {
       source  = "hashicorp/random"
       version = "3.6.3"
@@ -38,4 +42,8 @@ provider "routeros" {
   insecure = var.router_core.auth.insecure
 }
 
-
+provider "infisical" {
+  host          = var.infisical.auth.host
+  client_id     = var.infisical.auth.client_id
+  client_secret = var.infisical.auth.client_secret
+}

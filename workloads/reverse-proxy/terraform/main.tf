@@ -27,13 +27,14 @@ resource "routeros_ip_dns_record" "proxmox_dns_record_homelab" {
   type    = "A"
 }
 
-resource "proxmox_virtual_environment_download_file" "debian_12_standard_12_7_1_amd64" {
+
+resource "proxmox_virtual_environment_download_file" "ubuntu_image" {
   content_type       = "vztmpl"
   datastore_id       = "nfs_data"
   node_name          = local.node_names[0]
-  url                = "http://download.proxmox.com/images/system/debian-12-standard_12.7-1_amd64.tar.zst"
-  checksum           = "39f6d06e082d6a418438483da4f76092ebd0370a91bad30b82ab6d0f442234d63fe27a15569895e34d6d1e5ca50319f62637f7fb96b98dbde4f6103cf05bff6d"
-  checksum_algorithm = "sha512"
+  url                = "https://cloud-images.ubuntu.com/releases/22.04/release-20231211/ubuntu-22.04-server-cloudimg-amd64-root.tar.xz"
+  checksum           = "c9997dcfea5d826fd04871f960c513665f2e87dd7450bba99f68a97e60e4586e"
+  checksum_algorithm = "sha256"
   verify             = false
   upload_timeout     = 5000
 }
@@ -60,18 +61,18 @@ resource "proxmox_virtual_environment_container" "ve" {
   }
 
   cpu {
-    cores = 1
+    cores = 2
   }
 
   memory {
-    dedicated = 1024
+    dedicated = 4096
   }
 
   tags = []
 
   disk {
     datastore_id = "local_lvm"
-    size         = 4
+    size         = 8
   }
 
   network_interface {
@@ -80,8 +81,8 @@ resource "proxmox_virtual_environment_container" "ve" {
   }
 
   operating_system {
-    template_file_id = proxmox_virtual_environment_download_file.debian_12_standard_12_7_1_amd64.id
-    type             = "debian"
+    template_file_id = proxmox_virtual_environment_download_file.ubuntu_image.id
+    type             = "ubuntu"
   }
 
   startup {
@@ -110,10 +111,37 @@ resource "proxmox_virtual_environment_firewall_rules" "inbound" {
     proto   = "tcp"
     log     = "info"
   }
+
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow Minecraft on port minecraft"
+    dport   = "25565"
+    proto   = "tcp"
+    log     = "info"
+  }
 }
 
 output "rp_ve_password" {
   description = "Generated password for the rp ve"
   value       = random_password.ve_password.result
+  sensitive   = true
+}
+
+data "infisical_secrets" "infra_secrets" {
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
+}
+
+output "wg_tunnel_credentials" {
+  description = "wg tunnel public and private key"
+  value       = {
+    server_public_key = data.infisical_secrets.infra_secrets.secrets["WG_SERVER_PUBLIC_KEY"].value
+    server_private_key = data.infisical_secrets.infra_secrets.secrets["WG_SERVER_PRIVATE_KEY"].value
+    client_public_key = data.infisical_secrets.infra_secrets.secrets["WG_CLIENT_PUBLIC_KEY"].value
+    client_private_key = data.infisical_secrets.infra_secrets.secrets["WG_CLIENT_PRIVATE_KEY"].value
+    tunnel_vm_public_ip_address =data.infisical_secrets.infra_secrets.secrets["TUNNEL_VM_PUBLIC_IP_ADDRESS"].value
+  }
   sensitive   = true
 }

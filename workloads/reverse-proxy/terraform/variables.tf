@@ -24,6 +24,20 @@ variable "proxmox" {
   sensitive = true
 }
 
+variable "infisical" {
+  description = "Infisical settings with nested auth"
+  type = object({
+    auth = object({
+      host          = string
+      client_id     = string
+      client_secret = string
+    })
+    env_slug     = string
+    workspace_id = string
+  })
+  sensitive = true
+}
+
 variable "homelab_ssh_public_key" {
   description = "SSH public key used to access to homelab admin."
   type        = string

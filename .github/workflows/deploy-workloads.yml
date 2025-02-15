@@ -37,6 +37,16 @@ on:
         required: true
       PROXMOX_PASSWORD:
         required: true
+      INFISICAL_HOST:
+        required: true
+      INFISICAL_CLIENT_ID:
+        required: true
+      INFISICAL_CLIENT_SECRET:
+        required: true
+      INFISICAL_WORKSPACE_ID:
+        required: true
+      INFISICAL_ENV_SLUG:
+        required: true
 
 jobs:
   homelab-workload:
@@ -83,4 +93,8 @@ jobs:
           PROXMOX_USERNAME: ${{ secrets.PROXMOX_USERNAME }}
           PROXMOX_PASSWORD: ${{ secrets.PROXMOX_PASSWORD }}
           PROXMOX_ENDPOINT: ${{ inputs.proxmox_endpoint }}
-
+          INFISICAL_HOST: ${{ secrets.INFISICAL_HOST }}
+          INFISICAL_CLIENT_ID: ${{ secrets.INFISICAL_CLIENT_ID }}
+          INFISICAL_CLIENT_SECRET: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          INFISICAL_WORKSPACE_ID: ${{ secrets.INFISICAL_WORKSPACE_ID }}
+          INFISICAL_ENV_SLUG: ${{ secrets.INFISICAL_ENV_SLUG }}
