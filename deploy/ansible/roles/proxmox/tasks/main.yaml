@@ -142,21 +142,24 @@
   changed_when: false
   when: is_master
 
-# nfs: nfs_data
-- name: Check if NFS storage block for /mnt/data is already defined in Proxmox
+##########################################################################
+# Create nfs volumes
+##########################################################################
+
+# pvesm add nfs nfs_data
+- name: Check if nfs_data already created
   ansible.builtin.shell: |
     grep -q '^nfs: nfs_data' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
   register: nfs_data_check_result
   changed_when: false
   when: is_master
 
-- name: Configure NFS storage for /mnt/data in Proxmox
+- name: Configure nfs storage for nfs_data in Proxmox
   ansible.builtin.command: >
     pvesm add nfs nfs_data
-    --server {{ nfs_server_ip }}
-    --export /mnt/data
-    --options vers=3
-    --content rootdir,backup,snippets,images,vztmpl,import,iso
+    --server 10.70.30.10
+    --export /mnt/nas_backup_pool/proxmox_uncritical
+    --content iso,vztmpl
   when: is_master and nfs_data_check_result.stdout == "not_exists"
   register: nfs_data_add_result
   failed_when: >
@@ -166,41 +169,40 @@
     nfs_data_add_result.rc == 0 and
     ('already defined' not in nfs_data_add_result.stderr.lower())
 
-- name: Confirm NFS storage block for /mnt/data exists in /etc/pve/storage.cfg
+- name: Confirm nfs storage for nfs_data in Proxmox
   ansible.builtin.shell: |
     grep -q '^nfs: nfs_data' /etc/pve/storage.cfg && echo "found" || echo "not found"
   register: nfs_data_confirm
   changed_when: false
   when: is_master
 
-# nfs: nfs_plex
-- name: Check if NFS storage block for /mnt/plex is already defined in Proxmox
+# pvesm add nfs nfs_backup
+- name: Check if nfs_backup already created
   ansible.builtin.shell: |
-    grep -q '^nfs: nfs_plex' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
-  register: nfs_plex_check_result
+    grep -q '^nfs: nfs_backup' /etc/pve/storage.cfg && echo "exists" || echo "not_exists"
+  register: nfs_backup_check_result
   changed_when: false
   when: is_master
 
-- name: Configure NFS storage for /mnt/plex in Proxmox
+- name: Configure nfs storage for nfs_backup in Proxmox
   ansible.builtin.command: >
-    pvesm add nfs nfs_plex
-    --server {{ nfs_server_ip }}
-    --export /mnt/plex
-    --options vers=3
-    --content rootdir
-  when: is_master and nfs_plex_check_result.stdout == "not_exists"
-  register: nfs_plex_add_result
+    pvesm add nfs nfs_backup
+    --server 10.70.30.10
+    --export /mnt/backblaze_backup_pool/proxmox_critical
+    --content backup
+  when: is_master and nfs_backup_check_result.stdout == "not_exists"
+  register: nfs_backup_add_result
   failed_when: >
-    nfs_plex_add_result.rc != 0 and
-    ('already defined' not in nfs_plex_add_result.stderr.lower())
+    nfs_backup_add_result.rc != 0 and
+    ('already defined' not in nfs_backup_add_result.stderr.lower())
   changed_when: >
-    nfs_plex_add_result.rc == 0 and
-    ('already defined' not in nfs_plex_add_result.stderr.lower())
+    nfs_backup_add_result.rc == 0 and
+    ('already defined' not in nfs_backup_add_result.stderr.lower())
 
-- name: Confirm NFS storage block for /mnt/plex exists in /etc/pve/storage.cfg
+- name: Confirm nfs storage for nfs_backup in Proxmox
   ansible.builtin.shell: |
-    grep -q '^nfs: nfs_plex' /etc/pve/storage.cfg && echo "found" || echo "not found"
-  register: nfs_plex_confirm
+    grep -q '^nfs: nfs_backup' /etc/pve/storage.cfg && echo "found" || echo "not found"
+  register: nfs_backup_confirm
   changed_when: false
   when: is_master
 
@@ -226,17 +228,17 @@
 ##########################################################################
 # VM Backup Job
 ##########################################################################
-- name: Get current Proxmox backup jobs
-  ansible.builtin.command: "pvesh get /cluster/backup/jobs"
+- name: Check if nfs backup job already created
+  ansible.builtin.shell: |
+    grep -P '^\s+pool vm_backup_pool' /etc/pve/jobs.cfg && echo "exists" || echo "not_exists"
   register: current_backup_jobs
   changed_when: false
-  failed_when: false
   when: is_master
 
-- name: Create Proxmox backup job for pool "vm_backup_pool" if not exists
+- name: Create Proxmox backup job for pool "vm_backup_pool" if already created
   ansible.builtin.command: >
-    pvesh create /cluster/backup --schedule '*-*-* 11:00:00' --pool vm_backup_pool --storage nfs_data --maxfiles 2 --enabled 1
-  when: is_master and ("vm_backup_pool" not in current_backup_jobs.stdout)
+    pvesh create /cluster/backup --schedule '*-*-* 11:00:00' --pool vm_backup_pool --storage nfs_backup --maxfiles 2 --enabled 1
+  when: is_master and ((current_backup_jobs.stdout | trim) != "not_exists")
   register: create_backup_job
   changed_when: create_backup_job.rc == 0
 

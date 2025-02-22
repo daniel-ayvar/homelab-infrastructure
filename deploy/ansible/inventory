@@ -1,6 +1,3 @@
-[nas_nodes]
-minis00 ansible_host=10.70.30.10 hostname=minis00 ip_address=10.70.30.10
-
 [proxmox_master]
 minis01 ansible_host=10.70.30.12 hostname=minis01 ip_address=10.70.30.12 proxmox_ceph_disk=/dev/sda
 
@@ -11,7 +8,6 @@ minis03 ansible_host=10.70.30.16 hostname=minis03 ip_address=10.70.30.16 proxmox
 [homelab_nodes:children]
 proxmox_master
 proxmox_nodes
-nas_nodes
 
 [all:vars]
 ansible_connection=ssh
@@ -19,4 +15,3 @@ ansible_port=22
 ansible_user=root
 ansible_python_interpreter=/usr/bin/python3
 node_network=10.70.30.0/24
-nfs_server_ip=minis00
