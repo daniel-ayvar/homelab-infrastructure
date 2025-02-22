@@ -153,6 +153,12 @@ module "k8s_cilium" {
   kubernetes = local.kubernetes
 }
 
+module "k8s_nfs" {
+  source   = "./bootstrap/nfs/"
+
+  kubernetes = local.kubernetes
+}
+
 data "infisical_secrets" "infra_secrets" {
   env_slug     = var.infisical.env_slug
   workspace_id = var.infisical.workspace_id
