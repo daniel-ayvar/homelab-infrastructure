@@ -17,10 +17,8 @@ resource "helm_release" "external_secrets" {
   version    = "0.14.1"
 }
 
-resource "infisical_project" "k8s_secret_project" {
-  name        = "Homelab Infrastructure K8s"
-  slug        = "homelab-infrastructure-k8s"
-  description = "This is a project of k8s secrets"
+data "infisical_projects" "k8s_secret_project" {
+  slug = "homelab-infrastructure-k8s"
 }
 
 resource "random_string" "identity_name" {
@@ -35,7 +33,7 @@ resource "infisical_identity" "universal_auth" {
 }
 
 resource "infisical_project_identity" "project_identity" {
-  project_id  = infisical_project.k8s_secret_project.id
+  project_id  = data.infisical_projects.k8s_secret_project.id
   identity_id = infisical_identity.universal_auth.id
   roles = [
     {
@@ -91,7 +89,7 @@ spec:
             namespace: ${kubernetes_namespace.external_secrets.metadata[0].name}
             name: ${kubernetes_secret.infisical_auth.metadata[0].name}
       secretsScope:
-        projectSlug: ${infisical_project.k8s_secret_project.slug}
+        projectSlug: ${data.infisical_projects.k8s_secret_project.slug}
         environmentSlug: "prod"
         secretsPath: "/"
         recursive: true

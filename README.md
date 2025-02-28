@@ -29,6 +29,7 @@ Before you begin you must of met the following requirements.
 * Terraform (version 1.10 or higher)
 * Python3
 * Ansible (version 2.16 or higher)
+* Ansible Lint
 * Infisical CLI
 
 For both Terraform and Infisical, ensure you have been have access to the appropriate workspaces.

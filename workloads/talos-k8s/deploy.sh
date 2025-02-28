@@ -35,8 +35,8 @@ ansible-playbook -i workloads/talos-k8s/ansible/inventory workloads/talos-k8s/an
 
 export CEPH_KEY=$(cat "workloads/talos-k8s/${CEPH_KEY_OUTPUT_FILE}")
 
-# Create terraform vars
-cat <<EOF > ./workloads/talos-k8s/terraform/terraform.auto.tfvars.json
+# Create terraform vars for infra
+cat <<EOF > ./workloads/talos-k8s/terraform/infra/terraform.auto.tfvars.json
 {
   "homelab_ssh_public_key": "$HOMELAB_SSH_PUBLIC_KEY",
   "router_core": {
@@ -66,18 +66,65 @@ cat <<EOF > ./workloads/talos-k8s/terraform/terraform.auto.tfvars.json
     "workspace_id": "$INFISICAL_WORKSPACE_ID"
   },
   "ceph": {
-     "auth": {
-      "username": "$CEPH_USERNAME",
-      "key": "$CEPH_KEY"
-    },
     "cluster_ips": ["10.70.30.12", "10.70.30.14", "10.70.30.16"]
   }
 }
 EOF
 
 
+# Run Terraform apply for infra
+terraform -chdir=workloads/talos-k8s/terraform/infra init
+terraform -chdir=workloads/talos-k8s/terraform/infra validate
+terraform -chdir=workloads/talos-k8s/terraform/infra plan
+terraform -chdir=workloads/talos-k8s/terraform/infra apply -auto-approve
+
+terraform -chdir=workloads/talos-k8s/terraform/infra output -json kubernetes > ./k8s_credentials.json
+export K8S_HOST=$(jq -r '.auth.host' < ./k8s_credentials.json)
+export K8S_CLIENT_KEY_B64=$(jq -r '.auth.client_key_b64' < ./k8s_credentials.json)
+export K8S_CLIENT_CERTIFICATE_B64=$(jq -r '.auth.client_certificate_b64' < ./k8s_credentials.json)
+export K8S_CLUSTER_CA_CERTIFICATE_B64=$(jq -r '.auth.cluster_ca_certificate_b64' < ./k8s_credentials.json)
+
+# Create terraform vars
+cat <<EOF > ./workloads/talos-k8s/terraform/bootstrap/terraform.auto.tfvars.json
+{
+  "proxmox": {
+    "auth": {
+      "endpoint": "$PROXMOX_ENDPOINT",
+      "username": "$PROXMOX_ADMIN_USERNAME",
+      "password": "$PROXMOX_ADMIN_PASSWORD",
+      "api_token": "$PROXMOX_API_TOKEN",
+      "insecure": true
+    }
+  },
+  "infisical": {
+    "auth": {
+      "host": "$INFISICAL_HOST",
+      "client_id": "$INFISICAL_CLIENT_ID",
+      "client_secret": "$INFISICAL_CLIENT_SECRET"
+    },
+    "env_slug": "$INFISICAL_ENV_SLUG",
+    "workspace_id": "$INFISICAL_WORKSPACE_ID"
+  },
+  "ceph": {
+     "auth": {
+      "username": "$CEPH_USERNAME",
+      "key": "$CEPH_KEY"
+    },
+    "cluster_ips": ["10.70.30.12", "10.70.30.14", "10.70.30.16"]
+  },
+  "kubernetes": {
+    "auth": {
+      "host": "$K8S_HOST",
+      "client_key_b64": "$K8S_CLIENT_KEY_B64",
+      "client_certificate_b64": "$K8S_CLIENT_CERTIFICATE_B64",
+      "cluster_ca_certificate_b64": "$K8S_CLUSTER_CA_CERTIFICATE_B64"
+    }
+  }
+}
+EOF
+
 # Run Terraform apply
-terraform -chdir=workloads/talos-k8s/terraform init
-terraform -chdir=workloads/talos-k8s/terraform validate
-terraform -chdir=workloads/talos-k8s/terraform plan
-terraform -chdir=workloads/talos-k8s/terraform apply -auto-approve
+terraform -chdir=workloads/talos-k8s/terraform/bootstrap init
+terraform -chdir=workloads/talos-k8s/terraform/bootstrap validate
+terraform -chdir=workloads/talos-k8s/terraform/bootstrap plan
+terraform -chdir=workloads/talos-k8s/terraform/bootstrap apply -auto-approve

@@ -105,89 +105,34 @@ module "talos" {
   source = "./talos"
 
   providers = {
-    proxmox = proxmox
-    helm    = helm.talos
+    proxmox  = proxmox
+    helm     = helm
+    routeros = routeros
   }
 
   image = {
-    extension_names = ["siderolabs/i915-ucode", "siderolabs/intel-ucode", "siderolabs/qemu-guest-agent"]
+    extension_names = ["siderolabs/i915", "siderolabs/intel-ucode", "siderolabs/qemu-guest-agent"]
     version         = "v1.9.3"
   }
 
   cluster = local.cluster
 
-  nodes = local.nodes
+  nodes            = local.nodes
   ceph_cluster_ips = var.ceph.cluster_ips
 }
 
-locals {
-    kubernetes = {
-      auth = {
-          host                   = module.talos.kube_config.kubernetes_client_configuration.host
-          client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
-          client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
-          cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
-        }
-    }
-}
-
-module "k8s_ceph_rbd" {
-  source   = "./bootstrap/ceph-rbd/"
-
-  proxmox = var.proxmox
-  ceph    = var.ceph
-  kubernetes = local.kubernetes
-}
-
-module "k8s_cephfs" {
-  source   = "./bootstrap/cephfs/"
-
-  proxmox = var.proxmox
-  ceph    = var.ceph
-  kubernetes = local.kubernetes
-}
-
-module "k8s_cilium" {
-  source   = "./bootstrap/cilium/"
-
-  kubernetes = local.kubernetes
-}
-
-module "k8s_nfs" {
-  source   = "./bootstrap/nfs/"
-
-  kubernetes = local.kubernetes
-}
-
-data "infisical_secrets" "infra_secrets" {
+resource "infisical_secret" "talos_kube_config_b64" {
+  name         = "TALOS_KUBE_CONFIG_B64"
+  value        = base64encode(module.talos.kube_config.kubeconfig_raw)
   env_slug     = var.infisical.env_slug
   workspace_id = var.infisical.workspace_id
   folder_path  = "/"
 }
 
-locals {
-  gh_ssh_credentials = {
-    identity     = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_IDENTITY_KEY_B64"].value)
-    identity_pub = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_PUBLIC_IDENTITY_KEY_B64"].value)
-    known_hosts  = base64decode(data.infisical_secrets.infra_secrets.secrets["GH_SSH_KNOWN_HOSTS_B64"].value)
-  }
-}
-
-module "k8s_flux" {
-  source   = "./bootstrap/flux/"
-
-  kubernetes = local.kubernetes
-  gh_ssh_credentials = local.gh_ssh_credentials
-}
-
-module "k8s_external_secrets" {
-  source   = "./bootstrap/external-secrets/"
-
-  providers = {
-    infisical = infisical
-  }
-
-  kubernetes = local.kubernetes
-  infisical_workspace_id = data.infisical_secrets.infra_secrets.secrets["INFISICAL_ORG_ID"].value
-
+resource "infisical_secret" "talos_config_b64" {
+  name         = "TALOS_CONFIG_B64"
+  value        = base64encode(module.talos.client_configuration.talos_config)
+  env_slug     = var.infisical.env_slug
+  workspace_id = var.infisical.workspace_id
+  folder_path  = "/"
 }

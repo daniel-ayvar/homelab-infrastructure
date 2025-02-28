@@ -12,6 +12,8 @@
 .infisical.json
 current_proxmox_dhcp_leases.json
 wg_tunnel_credentials.json
+k8s_credentials.json
+
 id_*
 *.keyring
 *.key
