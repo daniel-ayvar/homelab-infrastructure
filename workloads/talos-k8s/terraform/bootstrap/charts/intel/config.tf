@@ -1,6 +1,6 @@
-resource "kubernetes_namespace" "intel_gpu_device_plugin" {
+resource "kubernetes_namespace" "intel" {
   metadata {
-    name = "intel-gpu-device-plugin"
+    name = "intel"
     labels = {
       "pod-security.kubernetes.io/enforce" = "privileged"
       "pod-security.kubernetes.io/audit"   = "privileged"
@@ -9,10 +9,19 @@ resource "kubernetes_namespace" "intel_gpu_device_plugin" {
   }
 }
 
-resource "helm_release" "intel_gpu_device_plugin" {
-  name       = "intel-gpu-device-plugin"
-  namespace  = kubernetes_namespace.intel_gpu_device_plugin.metadata[0].name
+resource "helm_release" "intel_device_plugin_operator" {
+  name       = "device-plugin-operator"
+  namespace  = kubernetes_namespace.intel.metadata[0].name
   repository = "https://intel.github.io/helm-charts"
-  chart      = "intel/intel-device-plugins-gpu"
-  version    = "v4.10.0"
+  chart      = "intel-device-plugins-operator"
+  version    = "0.32.0"
+}
+
+resource "helm_release" "intel_device_plugins_gpu" {
+  depends_on = [helm_release.intel_device_plugin_operator]
+  name       = "gpu-device-plugin"
+  namespace  = kubernetes_namespace.intel.metadata[0].name
+  repository = "https://intel.github.io/helm-charts"
+  chart      = "intel-device-plugins-gpu"
+  version    = "0.32.0"
 }

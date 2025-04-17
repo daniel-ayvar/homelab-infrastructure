@@ -41,6 +41,34 @@ module "k8s_nfs" {
   }
 }
 
+module "k8s_cert_manager" {
+  source = "./charts/cert-manager/"
+
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+}
+
+module "k8s_nfd" {
+  source = "./charts/nfd/"
+
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+}
+
+module "k8s_intel" {
+  depends_on = [module.k8s_cert_manager, module.k8s_nfd]
+  source = "./charts/intel/"
+
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+}
+
 data "infisical_secrets" "infra_secrets" {
   env_slug     = var.infisical.env_slug
   workspace_id = var.infisical.workspace_id
