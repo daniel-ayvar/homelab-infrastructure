@@ -115,8 +115,17 @@ resource "proxmox_virtual_environment_firewall_rules" "inbound" {
   rule {
     type    = "in"
     action  = "ACCEPT"
-    comment = "Allow Minecraft on port minecraft"
+    comment = "Allow Minecraft on port 25565"
     dport   = "25565"
+    proto   = "tcp"
+    log     = "info"
+  }
+
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow Plex on port 324000"
+    dport   = "32400"
     proto   = "tcp"
     log     = "info"
   }

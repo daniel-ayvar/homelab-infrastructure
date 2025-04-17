@@ -48,6 +48,16 @@ resource "linode_firewall" "homelab_tunnel" {
     ipv6     = ["::/0"]
   }
 
+  # Open inbound Plex (TCP)
+  inbound {
+    label    = "allow-plex"
+    action   = "ACCEPT"
+    protocol = "TCP"
+    ports    = "32400"
+    ipv4     = ["0.0.0.0/0"]
+    ipv6     = ["::/0"]
+  }
+
   # Open inbound ICMP (for ping, etc.)
   inbound {
     label    = "allow-icmp"
