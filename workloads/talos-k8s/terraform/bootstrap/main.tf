@@ -32,12 +32,24 @@ module "k8s_cilium" {
   }
 }
 
+module "k8s_snapshot_controller" {
+  source = "./charts/snapshot-controller/"
+
+  providers = {
+    kubernetes = kubernetes
+    helm       = helm
+  }
+}
+
 module "k8s_nfs" {
+  depends_on = [module.k8s_snapshot_controller]
+
   source = "./charts/nfs/"
 
   providers = {
     kubernetes = kubernetes
     helm       = helm
+    kubectl    = kubectl
   }
 }
 
