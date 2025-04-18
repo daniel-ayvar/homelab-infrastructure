@@ -16,3 +16,21 @@ resource "helm_release" "nfs_csi" {
   chart      = "csi-driver-nfs"
   version    = "v4.10.0"
 }
+
+resource "kubernetes_manifest" "nfs_csi_storage_class" {
+  manifest = {
+    apiVersion = "storage.k8s.io/v1"
+    kind       = "StorageClass"
+    metadata = {
+      name = "nfs-csi"
+    }
+    provisioner = "nfs.csi.k8s.io"
+    parameters = {
+      server = "10.70.30.10"
+      share  = "/mnt/backblaze_backup_pool/data"
+    }
+    reclaimPolicy        = "Retain"
+    volumeBindingMode    = "Immediate"
+    allowVolumeExpansion = true
+  }
+}
