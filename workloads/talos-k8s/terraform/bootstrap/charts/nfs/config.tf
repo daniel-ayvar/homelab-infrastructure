@@ -15,20 +15,22 @@ resource "helm_release" "nfs_csi" {
   repository = "https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts"
   chart      = "csi-driver-nfs"
   version    = "v4.10.0"
-
-  set {
-    name  = "externalSnapshotter.enabled"
-    value = "true"
-  }
 }
 
-resource "kubectl_manifest" "nfs_csi_snapshot_class" {
-  yaml_body = <<YAML
-apiVersion: snapshot.storage.k8s.io/v1
-kind: VolumeSnapshotClass
-metadata:
-  name: csi-nfs-snapclass
-driver: nfs.csi.k8s.io
-deletionPolicy: Delete
-YAML
+resource "kubernetes_manifest" "nfs_csi_storage_class" {
+  manifest = {
+    apiVersion = "storage.k8s.io/v1"
+    kind       = "StorageClass"
+    metadata = {
+      name = "nfs-csi"
+    }
+    provisioner = "nfs.csi.k8s.io"
+    parameters = {
+      server = "10.70.30.10"
+      share  = "/mnt/backblaze_backup_pool/data"
+    }
+    reclaimPolicy        = "Retain"
+    volumeBindingMode    = "Immediate"
+    allowVolumeExpansion = true
+  }
 }
