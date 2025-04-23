@@ -131,6 +131,40 @@ resource "proxmox_virtual_environment_firewall_rules" "inbound" {
   }
 }
 
+resource "proxmox_virtual_environment_firewall_rules" "outbound" {
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow outbound to Minecraft server"
+    dest    = "10.70.30.200"
+    log     = "info"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow outbound to Plex server"
+    dest    = "10.70.30.201"
+    log     = "info"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    source  = "10.70.0.0/16"
+    comment = "Allow return traffic from 10.70.0.0/16 (connection initiated by them)"
+    log     = "info"
+  }
+
+  rule {
+    type    = "out"
+    action  = "DROP"
+    comment = "Deny outbound to all other 10.70.0.0/16 addresses"
+    dest    = "10.70.0.0/16"
+    log     = "info"
+  }
+}
+
 output "rp_ve_password" {
   description = "Generated password for the rp ve"
   value       = random_password.ve_password.result
