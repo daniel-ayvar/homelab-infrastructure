@@ -19,12 +19,14 @@ $IPT -I FORWARD 1 -i $IN_FACE -o $WG_FACE -j ACCEPT
 $IPT -I FORWARD 1 -i $WG_FACE -o $IN_FACE -j ACCEPT
 $IPT -I INPUT 1 -i $IN_FACE -p udp --dport $WG_PORT -j ACCEPT
 
-# Rules to forward ports 25565 (Minecraft) and 32400 (Plex)
-rules=("25565:tcp" "32400:tcp")
+# Rules to forward ports 25565 (Minecraft Java), 32400 (Plex), and 19132 (Bedrock UDP)
+rules=("25565:tcp" "32400:tcp" "19132:udp")
 for rule in "${rules[@]}"
 do
     IFS=':' read -r port protocol <<< "$rule"
 
-    $IPT -t nat -A PREROUTING -i $IN_FACE -p $protocol --dport $port -j DNAT --to-destination {{ wg_client_address }}:$port
-    $IPT -t nat -A POSTROUTING -o $WG_FACE -p $protocol --dport $port -d {{ wg_client_address }} -j SNAT --to-source {{ wg_server_address }}
+    $IPT -t nat -A PREROUTING -i $IN_FACE -p $protocol --dport $port \
+        -j DNAT --to-destination {{ wg_client_address }}:$port
+    $IPT -t nat -A POSTROUTING -o $WG_FACE -p $protocol --dport $port -d {{ wg_client_address }} \
+        -j SNAT --to-source {{ wg_server_address }}
 done

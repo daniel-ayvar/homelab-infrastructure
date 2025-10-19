@@ -1,3 +1,6 @@
+# ================================
+# REVERSE PROXY: WireGuard + HAProxy
+# ================================
 - name: Configure and Deploy HAProxy and WireGuard on Webserver Nodes
   hosts: webservers
   become: true
@@ -13,7 +16,6 @@
     wg_vpn_subnet: "10.8.0.0/24"
     wg_server_public_key: "{{ lookup('env', 'WG_SERVER_PUBLIC_KEY') }}"
     wg_client_private_key: "{{ lookup('env', 'WG_CLIENT_PRIVATE_KEY') }}"
-
     wg_persistent_keepalive: 25
 
   tasks:
@@ -118,5 +120,64 @@
 
     - name: Restart WireGuard
       ansible.builtin.systemd:
-        name: wg-quick@{{ wg_interface }}
+        name: "wg-quick@{{ wg_interface }}"
         state: restarted
+
+
+# ================================
+# TUNNEL VM: NGINX UDP proxy for Bedrock
+# ================================
+- name: Configure NGINX Stream Proxy for Bedrock on Tunnel VM
+  hosts: webservers
+  become: true
+  vars:
+    bedrock_backend_ip: "10.70.30.202"
+    bedrock_primary_port: 19132
+    expose_secondary_bedrock: false   # set true if also exposing 19133
+
+  tasks:
+    - name: Install NGINX
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Ensure stream include exists in nginx.conf
+      ansible.builtin.blockinfile:
+        path: /etc/nginx/nginx.conf
+        marker: "# {mark} ANSIBLE STREAM INCLUDE"
+        block: |
+          stream {
+              include /etc/nginx/streams/*.conf;
+          }
+      notify: Reload NGINX
+
+    - name: Ensure streams directory exists
+      ansible.builtin.file:
+        path: /etc/nginx/streams
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy Bedrock stream config
+      ansible.builtin.template:
+        src: templates/nginx-bedrock-stream.conf.j2
+        dest: /etc/nginx/streams/bedrock.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload NGINX
+
+    - name: Ensure NGINX is enabled and running
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Reload NGINX
+      ansible.builtin.shell: |
+        nginx -t
+        systemctl reload nginx
+      changed_when: true

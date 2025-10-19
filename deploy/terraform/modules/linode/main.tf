@@ -48,6 +48,16 @@ resource "linode_firewall" "homelab_tunnel" {
     ipv6     = ["::/0"]
   }
 
+  # Open inbound Bedrock Minecraft (UDP)
+  inbound {
+    label    = "allow-bedrock-udp"
+    action   = "ACCEPT"
+    protocol = "UDP"
+    ports    = "19132-19133"
+    ipv4     = ["0.0.0.0/0"]
+    ipv6     = ["::/0"]
+  }
+
   # Open inbound Plex (TCP)
   inbound {
     label    = "allow-plex"
