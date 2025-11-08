@@ -124,15 +124,6 @@ resource "proxmox_virtual_environment_firewall_rules" "inbound" {
   rule {
     type    = "in"
     action  = "ACCEPT"
-    comment = "Allow Minecraft Bedrock on UDP ports 19132–19133"
-    dport   = "19132:19133"
-    proto   = "udp"
-    log     = "info"
-  }
-
-  rule {
-    type    = "in"
-    action  = "ACCEPT"
     comment = "Allow Plex on port 324000"
     dport   = "32400"
     proto   = "tcp"
@@ -146,16 +137,6 @@ resource "proxmox_virtual_environment_firewall_rules" "outbound" {
     action  = "ACCEPT"
     comment = "Allow outbound to Minecraft server"
     dest    = "10.70.30.200"
-    log     = "info"
-  }
-
-  rule {
-    type    = "out"
-    action  = "ACCEPT"
-    comment = "Allow outbound Bedrock UDP to backend server"
-    dest    = "10.70.30.202"
-    dport   = "19132:19133"
-    proto   = "udp"
     log     = "info"
   }
 
