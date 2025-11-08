@@ -120,3 +120,33 @@
       ansible.builtin.systemd:
         name: wg-quick@{{ wg_interface }}
         state: restarted
+
+# ================================
+# CLEANUP: Remove NGINX Load Balancer
+# ================================
+- name: Remove NGINX if previously installed
+  hosts: webservers
+  become: true
+  tasks:
+    - name: Stop and disable NGINX service
+      ansible.builtin.service:
+        name: nginx
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Uninstall NGINX package
+      ansible.builtin.apt:
+        name: nginx
+        state: absent
+        purge: true
+      ignore_errors: true
+
+    - name: Remove leftover NGINX config directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/nginx
+        - /var/log/nginx
+      ignore_errors: true
