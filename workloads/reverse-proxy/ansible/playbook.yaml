@@ -1,3 +1,6 @@
+# ================================
+# DEPLOY: HAProxy + WireGuard
+# ================================
 - name: Configure and Deploy HAProxy and WireGuard on Webserver Nodes
   hosts: webservers
   become: true
@@ -121,26 +124,28 @@
         name: wg-quick@{{ wg_interface }}
         state: restarted
 
+
 # ================================
 # CLEANUP: Remove NGINX Load Balancer
 # ================================
 - name: Remove NGINX if previously installed
   hosts: webservers
   become: true
+
   tasks:
     - name: Stop and disable NGINX service
       ansible.builtin.service:
         name: nginx
         state: stopped
         enabled: false
-      ignore_errors: true
+      failed_when: false   # ⬅️ replaces ignore_errors
 
     - name: Uninstall NGINX package
       ansible.builtin.apt:
         name: nginx
         state: absent
         purge: true
-      ignore_errors: true
+      failed_when: false   # ⬅️ replaces ignore_errors
 
     - name: Remove leftover NGINX config directories
       ansible.builtin.file:
@@ -149,4 +154,4 @@
       loop:
         - /etc/nginx
         - /var/log/nginx
-      ignore_errors: true
+      failed_when: false   # ⬅️ replaces ignore_errors
