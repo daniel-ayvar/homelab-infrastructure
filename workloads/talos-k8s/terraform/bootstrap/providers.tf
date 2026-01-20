@@ -22,7 +22,7 @@ terraform {
 
     infisical = {
       source  = "Infisical/infisical"
-      version = ">=0.12.11"
+      version = ">=0.15.60"
     }
 
     kubectl = {
@@ -53,7 +53,7 @@ provider "kubernetes" {
 }
 
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     host                   = var.kubernetes.auth.host
     client_certificate     = base64decode(var.kubernetes.auth.client_certificate_b64)
     client_key             = base64decode(var.kubernetes.auth.client_key_b64)

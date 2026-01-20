@@ -14,7 +14,7 @@ resource "helm_release" "external_secrets" {
   namespace  = kubernetes_namespace.external_secrets.metadata[0].name
   repository = "https://charts.external-secrets.io"
   chart      = "external-secrets"
-  version    = "0.14.1"
+  version    = "1.2.1"
 }
 
 data "infisical_projects" "k8s_secret_project" {
@@ -96,5 +96,4 @@ spec:
       hostAPI: "https://app.infisical.com"
 YAML
 }
-
 

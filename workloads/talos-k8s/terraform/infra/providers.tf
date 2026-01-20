@@ -22,7 +22,7 @@ terraform {
 
     infisical = {
       source  = "Infisical/infisical"
-      version = ">=0.12.11"
+      version = ">=0.15.60"
     }
   }
 
@@ -53,5 +53,4 @@ provider "infisical" {
   client_id     = var.infisical.auth.client_id
   client_secret = var.infisical.auth.client_secret
 }
-
 

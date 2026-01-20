@@ -16,8 +16,10 @@ resource "helm_release" "cert_manager" {
   chart      = "cert-manager"
   version    = "v1.17.1"
 
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
+  set = [
+    {
+      name  = "installCRDs"
+      value = "true"
+    }
+  ]
 }
