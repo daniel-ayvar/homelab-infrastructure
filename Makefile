@@ -41,3 +41,6 @@ deploy/workloads/docker-registry: venv retrieve-secrets setup-ssh
 
 build/docker/hytale:
 	@./scripts/docker/build_hytale_image.sh
+
+build/docker/hytale-multi:
+	@HYTALE_PLATFORMS="linux/amd64,linux/arm64" HYTALE_PUSH=1 ./scripts/docker/build_hytale_image.sh
