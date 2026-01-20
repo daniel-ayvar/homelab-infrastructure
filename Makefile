@@ -38,3 +38,6 @@ deploy/workloads/docker-registry: venv retrieve-secrets setup-ssh
 	. ./.venv/bin/activate && \
 	. ./.env && \
 	./workloads/docker-registry/deploy.sh
+
+build/docker/hytale:
+	@./scripts/docker/build_hytale_image.sh

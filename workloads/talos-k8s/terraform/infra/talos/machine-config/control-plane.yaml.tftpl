@@ -3,6 +3,14 @@ machine:
   kubelet:
     extraArgs:
       rotate-server-certificates: true
+  registries:
+    mirrors:
+      "10.70.30.21:5000":
+        endpoints:
+          - "http://10.70.30.21:5000"
+      "registry:5000":
+        endpoints:
+          - "http://registry:5000"
   network:
     hostname: ${hostname}
   nodeLabels:

@@ -19,3 +19,6 @@ id_*
 *.key
 
 workloads/talos-k8s/terraform/output/*
+
+Dockerfiles/hytale/Assets.zip
+Dockerfiles/hytale/HytaleServer.jar

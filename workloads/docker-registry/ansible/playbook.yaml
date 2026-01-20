@@ -17,8 +17,8 @@
       ansible.builtin.file:
         path: /opt/registry/data
         state: directory
-        owner: root
-        group: root
+        owner: docker-registry
+        group: docker-registry
         mode: "0755"
 
     - name: Configure Docker registry

@@ -80,3 +80,17 @@ ansible-lint ./deploy/ansible/homelab.yaml
 # Run the ansible scripts
 ansible-playbook -i ./deploy/ansible/inventory ./deploy/ansible/homelab.yaml --key-file ~/.ssh/id_ed25519_homelab
 ```
+
+## Dockerfiles
+
+Custom Dockerfiles live under `Dockerfiles/`.
+
+### Hytale server image
+The Hytale Dockerfile expects the following files to be present in `Dockerfiles/hytale/` before build:
+* `HytaleServer.jar`
+* `Assets.zip`
+
+Build example:
+```shell
+docker build -t hytale-server:1.0 Dockerfiles/hytale
+```
