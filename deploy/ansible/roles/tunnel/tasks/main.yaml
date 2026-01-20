@@ -26,11 +26,22 @@
 
 - name: Deploy WireGuard remove tunnel rules
   ansible.builtin.template:
-    src: ../files/add_tunnel_rules.sh
+    src: ../files/remove_tunnel_rules.sh
     dest: "{{ remove_tunnel_script_file }}"
     owner: root
     group: root
     mode: "0700"
+  become: true
+
+- name: Remove existing tunnel rules before re-adding
+  ansible.builtin.command: "{{ remove_tunnel_script_file }}"
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Apply tunnel rules
+  ansible.builtin.command: "{{ add_tunnel_script_file }}"
+  changed_when: false
   become: true
 
 - name: Deploy WireGuard configuration file (wg0.conf)

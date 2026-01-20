@@ -19,8 +19,8 @@ $IPT -D FORWARD -i $IN_FACE -o $WG_FACE -j ACCEPT
 $IPT -D FORWARD -i $WG_FACE -o $IN_FACE -j ACCEPT
 $IPT -D INPUT -i $IN_FACE -p udp --dport $WG_PORT -j ACCEPT
 
-# Rules to forward ports 25565 (Minecraft) and 32400 (Plex)
-rules=("25565:tcp" "32400:tcp")
+# Rules to forward ports 25565 (Minecraft), 32400 (Plex), and 5520 (Hytale)
+rules=("25565:tcp" "32400:tcp" "5520:udp")
 for rule in "${rules[@]}"
 do
     IFS=':' read -r port protocol <<< "$rule"

@@ -5,7 +5,7 @@ set -euo pipefail
 : "${HYTALE_ASSETS_PATH:?Environment variable HYTALE_ASSETS_PATH is required}"
 : "${HYTALE_JAR_PATH:?Environment variable HYTALE_JAR_PATH is required}"
 
-IMAGE_TAG="${HYTALE_IMAGE_TAG:-hytale-server:1.0}"
+IMAGE_TAG="${HYTALE_IMAGE_TAG:-hytale-server:experimental-0.1.4}"
 DOCKERFILE_DIR="Dockerfiles/hytale"
 PLATFORMS="${HYTALE_PLATFORMS:-}"
 PUSH_IMAGE="${HYTALE_PUSH:-}"

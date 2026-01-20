@@ -92,5 +92,5 @@ The Hytale Dockerfile expects the following files to be present in `Dockerfiles/
 
 Build example:
 ```shell
-docker build -t hytale-server:1.0 Dockerfiles/hytale
+docker build -t hytale-server:experimental-0.1.4 Dockerfiles/hytale
 ```
