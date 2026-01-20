@@ -10,3 +10,9 @@ resource "routeros_ip_dns_record" "nas" {
   address  = "10.70.30.10"
   type     = "A"
 }
+
+resource "routeros_ip_dns_record" "registry" {
+  name     = "registry"
+  address  = "10.70.30.21"
+  type     = "A"
+}
