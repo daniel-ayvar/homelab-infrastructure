@@ -1,0 +1,51 @@
+---
+- name: Configure Docker Registry host
+  hosts: registry
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install Docker registry package
+      ansible.builtin.apt:
+        name: docker-registry
+        state: present
+
+    - name: Ensure registry data directory exists
+      ansible.builtin.file:
+        path: /opt/registry/data
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Configure Docker registry
+      ansible.builtin.copy:
+        dest: /etc/docker/registry/config.yml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          version: 0.1
+          log:
+            level: info
+          storage:
+            filesystem:
+              rootdirectory: /opt/registry/data
+          http:
+            addr: :5000
+      notify: Restart Docker registry
+
+    - name: Ensure Docker registry service is started and enabled
+      ansible.builtin.service:
+        name: docker-registry
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart Docker registry
+      ansible.builtin.service:
+        name: docker-registry
+        state: restarted

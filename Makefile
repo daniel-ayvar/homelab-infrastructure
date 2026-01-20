@@ -32,3 +32,9 @@ deploy/workloads/talos-k8s: venv retrieve-secrets setup-ssh
 	. ./.venv/bin/activate && \
 	. ./.env && \
 	./workloads/talos-k8s/deploy.sh
+
+deploy/workloads/docker-registry: venv retrieve-secrets setup-ssh
+	@echo "Starting workload deployment for docker-registry..." && \
+	. ./.venv/bin/activate && \
+	. ./.env && \
+	./workloads/docker-registry/deploy.sh
