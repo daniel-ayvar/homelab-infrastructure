@@ -7,6 +7,7 @@
   vars:
     minecraft_server_endpoint: "10.70.30.200"
     plex_server_endpoint: "10.70.30.201"
+    hytale_server_endpoint: "10.70.30.205"
 
     wg_interface: wg0
     wg_listen_port: 2333
@@ -40,6 +41,11 @@
     - name: Install HAProxy
       ansible.builtin.apt:
         name: haproxy
+        state: present
+
+    - name: Install UDP forwarder
+      ansible.builtin.apt:
+        name: socat
         state: present
 
     - name: Ensure Wireguard configuration directory exists
@@ -106,6 +112,32 @@
     - name: Ensure HAProxy service is started and enabled
       ansible.builtin.service:
         name: haproxy
+        state: started
+        enabled: true
+
+    - name: Deploy Hytale UDP forwarder service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/hytale-udp-proxy.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Hytale UDP Forwarder
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/socat -T15 UDP-LISTEN:5520,reuseaddr,fork UDP:{{ hytale_server_endpoint }}:5520
+          Restart=always
+          RestartSec=2
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Ensure Hytale UDP forwarder is started and enabled
+      ansible.builtin.systemd:
+        name: hytale-udp-proxy.service
         state: started
         enabled: true
 

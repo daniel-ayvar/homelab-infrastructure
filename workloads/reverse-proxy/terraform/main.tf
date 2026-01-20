@@ -129,6 +129,15 @@ resource "proxmox_virtual_environment_firewall_rules" "inbound" {
     proto   = "tcp"
     log     = "info"
   }
+
+  rule {
+    type    = "in"
+    action  = "ACCEPT"
+    comment = "Allow Hytale on port 5520"
+    dport   = "5520"
+    proto   = "udp"
+    log     = "info"
+  }
 }
 
 resource "proxmox_virtual_environment_firewall_rules" "outbound" {
@@ -145,6 +154,14 @@ resource "proxmox_virtual_environment_firewall_rules" "outbound" {
     action  = "ACCEPT"
     comment = "Allow outbound to Plex server"
     dest    = "10.70.30.201"
+    log     = "info"
+  }
+
+  rule {
+    type    = "out"
+    action  = "ACCEPT"
+    comment = "Allow outbound to Hytale server"
+    dest    = "10.70.30.205"
     log     = "info"
   }
 
