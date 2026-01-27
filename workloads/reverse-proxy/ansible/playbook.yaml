@@ -133,13 +133,28 @@
 
           [Install]
           WantedBy=multi-user.target
-      notify: Reload systemd
+      notify:
+        - Reload systemd
+        - Restart Hytale UDP forwarder
 
     - name: Ensure Hytale UDP forwarder is started and enabled
       ansible.builtin.systemd:
         name: hytale-udp-proxy.service
         state: started
         enabled: true
+
+    - name: Check Hytale UDP forwarder target
+      ansible.builtin.shell: >
+        grep -q "UDP:{{ hytale_server_endpoint }}:5520" /etc/systemd/system/hytale-udp-proxy.service
+      register: hytale_udp_target_check
+      changed_when: false
+      failed_when: false
+
+    - name: Restart Hytale UDP forwarder when target differs
+      ansible.builtin.systemd:
+        name: hytale-udp-proxy.service
+        state: restarted
+      when: hytale_udp_target_check.rc != 0
 
   handlers:
     - name: Reload systemd
@@ -154,6 +169,11 @@
     - name: Restart WireGuard
       ansible.builtin.systemd:
         name: wg-quick@{{ wg_interface }}
+        state: restarted
+
+    - name: Restart Hytale UDP forwarder
+      ansible.builtin.systemd:
+        name: hytale-udp-proxy.service
         state: restarted
 
 

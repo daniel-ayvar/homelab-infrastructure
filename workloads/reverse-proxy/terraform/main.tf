@@ -1,6 +1,7 @@
 locals {
   node_names = ["minis01", "minis02", "minis03"]
   vm_id      = 200
+  hytale_ip  = "10.70.30.205"
 }
 
 resource "macaddress" "ve_mac_address" {
@@ -161,7 +162,7 @@ resource "proxmox_virtual_environment_firewall_rules" "outbound" {
     type    = "out"
     action  = "ACCEPT"
     comment = "Allow outbound to Hytale server"
-    dest    = "10.70.30.205"
+    dest    = local.hytale_ip
     log     = "info"
   }
 

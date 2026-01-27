@@ -29,6 +29,7 @@ resource "proxmox_virtual_environment_role" "ci_cd_operations" {
     "VM.Audit",
     "VM.Config.CPU",
     "VM.Config.Cloudinit",
+    "VM.Config.CDROM",
     "VM.Config.Disk",
     "VM.Config.HWType",
     "VM.Config.Memory",
@@ -71,4 +72,3 @@ output "terraform_auth" {
   }
   sensitive = true
 }
-

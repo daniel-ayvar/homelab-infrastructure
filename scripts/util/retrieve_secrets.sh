@@ -44,6 +44,10 @@ export INFISICAL_ENV_SLUG="prod"
 export BACKBLAZE_KEY_ID="$(infisical secrets get BACKBLAZE_KEY_ID --env=prod --plain)"
 export BACKBLAZE_APPLICATION_KEY="$(infisical secrets get BACKBLAZE_APPLICATION_KEY --env=prod --plain)"
 
+# Hytale Discord Bot Variables
+export HYTALE_DISCORD_TOKEN="$(infisical secrets get HYTALE_DISCORD_TOKEN --env=prod --plain)"
+export HYTALE_DISCORD_CHANNEL_ID="$(infisical secrets get HYTALE_DISCORD_CHANNEL_ID --env=prod --plain)"
+export HYTALE_DISCORD_AUTHOR_ID="$(infisical secrets get HYTALE_DISCORD_AUTHOR_ID --env=prod --plain)"
 EOF
 else
     echo "Secrets already retrieved in '$env_file'. To refresh, delete file and rerun."

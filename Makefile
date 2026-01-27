@@ -39,6 +39,12 @@ deploy/workloads/docker-registry: venv retrieve-secrets setup-ssh
 	. ./.env && \
 	./workloads/docker-registry/deploy.sh
 
+deploy/workloads/hytale: venv retrieve-secrets setup-ssh
+	@echo "Starting workload deployment for hytale..." && \
+	. ./.venv/bin/activate && \
+	. ./.env && \
+	./workloads/hytale/deploy.sh
+
 deploy/tunnel: venv retrieve-secrets setup-ssh
 	@echo "Starting tunnel deployment..." && \
 	. ./.venv/bin/activate && \

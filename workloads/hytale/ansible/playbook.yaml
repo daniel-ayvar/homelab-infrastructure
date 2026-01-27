@@ -1,0 +1,254 @@
+---
+- name: Configure Hytale server and bot
+  hosts: hytale
+  gather_facts: false
+  become: true
+  vars:
+    hytale_server_image: "deinfreu/hytale-server:experimental-0.1.4"
+    hytale_java_tool_options: "-Xms4G -Xmx8G"
+    hytale_data_dir: /opt/hytale/data
+    hytale_bot_dir: /opt/hytale/bot
+    hytale_bot_env_path: /etc/hytale/bot.env
+    hytale_bot_python: /opt/hytale/bot/venv/bin/python
+    hytale_bot_user: root
+
+    discord_token: "{{ lookup('env', 'HYTALE_DISCORD_TOKEN') }}"
+    discord_channel_id: "{{ lookup('env', 'HYTALE_DISCORD_CHANNEL_ID') }}"
+    discord_author_id: "{{ lookup('env', 'HYTALE_DISCORD_AUTHOR_ID') }}"
+    command_prefix: "!hytale"
+
+  pre_tasks:
+    - name: Wait for SSH to become available
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        timeout: 600
+        delay: 5
+        state: started
+      delegate_to: localhost
+      become: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Force stop apt timers and unattended upgrades
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - apt-daily.service
+        - apt-daily.timer
+        - apt-daily-upgrade.service
+        - apt-daily-upgrade.timer
+        - unattended-upgrades.service
+
+    - name: Kill lingering apt/dpkg processes
+      ansible.builtin.shell: |
+        set -euo pipefail
+        pkill -9 -f "apt|dpkg|unattended" || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
+
+    - name: Clear apt lock files
+      ansible.builtin.shell: |
+        set -euo pipefail
+        rm -f /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+  tasks:
+    - name: Validate required Discord secrets
+      ansible.builtin.assert:
+        that:
+          - discord_token | length > 0
+          - discord_channel_id | length > 0
+          - discord_author_id | length > 0
+        fail_msg: "Missing required Discord secrets in environment variables."
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+      register: apt_update_result
+      retries: 5
+      delay: 10
+      until: apt_update_result is succeeded
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - python3-venv
+          - python3-pip
+        state: present
+      register: apt_install_result
+      retries: 5
+      delay: 10
+      until: apt_install_result is succeeded
+
+    - name: Ensure Docker is started and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Configure Docker to allow insecure registry
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          {
+            "insecure-registries": [
+              "registry:5000",
+              "registry.homelab.lan:5000",
+              "10.70.30.21:5000"
+            ]
+          }
+      notify: Restart Docker
+
+    - name: Ensure Hytale directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - /etc/hytale
+        - "{{ hytale_data_dir }}"
+        - "{{ hytale_bot_dir }}"
+
+    - name: Ensure registry hostname resolves locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        line: "10.70.30.21 registry"
+        state: present
+        create: false
+
+    - name: Copy Hytale bot code
+      ansible.builtin.copy:
+        src: files/bot.py
+        dest: "{{ hytale_bot_dir }}/bot.py"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Create Python virtual environment for bot
+      ansible.builtin.command:
+        cmd: python3 -m venv "{{ hytale_bot_dir }}/venv"
+        creates: "{{ hytale_bot_dir }}/venv/bin/python"
+
+    - name: Install bot dependencies
+      ansible.builtin.command:
+        cmd: "{{ hytale_bot_dir }}/venv/bin/python -m pip install --no-cache-dir discord.py==2.4.0"
+      changed_when: false
+
+    - name: Write bot environment file
+      ansible.builtin.copy:
+        dest: "{{ hytale_bot_env_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+        content: |
+          DISCORD_TOKEN={{ discord_token }}
+          DISCORD_CHANNEL_ID={{ discord_channel_id }}
+          DISCORD_AUTHOR_ID={{ discord_author_id }}
+          COMMAND_PREFIX={{ command_prefix }}
+          HYTALE_CONTROL_MODE=systemd
+          HYTALE_SERVER_SERVICE=hytale-server
+
+    - name: Configure Hytale server systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/hytale-server.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Hytale Server (Docker)
+          After=docker.service
+          Requires=docker.service
+
+          [Service]
+          Environment="JAVA_TOOL_OPTIONS={{ hytale_java_tool_options }}"
+          ExecStartPre=/usr/bin/docker pull {{ hytale_server_image }}
+          ExecStartPre=-/usr/bin/docker rm -f hytale-server
+          ExecStart=/usr/bin/docker run \
+            --name hytale-server \
+            --restart=always \
+            --security-opt apparmor=unconfined \
+            -e TZ=America/Chicago \
+            -e SERVER_IP=0.0.0.0 \
+            -e SERVER_PORT=5520 \
+            -e PROD=FALSE \
+            -e DEBUG=FALSE \
+            -e JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS} \
+            -p 5520:5520/udp \
+            -v {{ hytale_data_dir }}:/home/container \
+            {{ hytale_server_image }}
+          ExecStop=/usr/bin/docker stop hytale-server
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Configure Hytale bot systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/hytale-bot.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Hytale Discord Bot
+          After=network.target
+
+          [Service]
+          EnvironmentFile={{ hytale_bot_env_path }}
+          WorkingDirectory={{ hytale_bot_dir }}
+          ExecStart={{ hytale_bot_python }} {{ hytale_bot_dir }}/bot.py
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Ensure Hytale server service is started and enabled
+      ansible.builtin.systemd:
+        name: hytale-server.service
+        state: started
+        enabled: true
+
+    - name: Ensure Hytale bot service is started and enabled
+      ansible.builtin.systemd:
+        name: hytale-bot.service
+        state: started
+        enabled: true
+
+    - name: Re-enable apt timers and unattended upgrades
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop:
+        - apt-daily.service
+        - apt-daily.timer
+        - apt-daily-upgrade.service
+        - apt-daily-upgrade.timer
+        - unattended-upgrades.service
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
